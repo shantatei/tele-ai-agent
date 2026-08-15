@@ -1,0 +1,18 @@
+# Private configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Telethon's locally stored authorization sessions
+*.session
+*.session-journal
+
+# Local Python environment and generated files
+.venv/
+__pycache__/
+*.py[cod]
+.cache/
+.pytest_cache/
+
+# macOS Finder metadata
+.DS_Store
