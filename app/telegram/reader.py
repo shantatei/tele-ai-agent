@@ -47,7 +47,7 @@ async def message_to_dict(message: Any, chat: Any, sender: Any | None = None) ->
 
 async def get_messages(
     client: Any,
-    chat_identifier: str | int,
+    chat_identifier: Any,
     limit: int = 20,
     *,
     after_message_id: int | None = None,
@@ -68,6 +68,9 @@ async def get_messages(
         raise TelegramReaderError("after_message_id must be a positive integer.")
     if after_timestamp is not None and after_timestamp.tzinfo is None:
         after_timestamp = after_timestamp.replace(tzinfo=timezone.utc)
+
+    if isinstance(chat_identifier, str) and chat_identifier.lstrip("-").isdigit():
+        chat_identifier = int(chat_identifier)
 
     try:
         chat = await client.get_entity(chat_identifier)

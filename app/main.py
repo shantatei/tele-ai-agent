@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 
 from app.config.settings import SettingsError, load_settings
 from app.telegram.client import TelegramAuthenticationError, authenticate_client, create_client
+from app.telegram.folders import TelegramFolderError, get_folder_chats
 from app.telegram.reader import TelegramReaderError, get_messages
 
 
@@ -25,20 +26,25 @@ def parse_timestamp(value: str) -> datetime:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Read Telegram messages to the terminal.")
-    parser.add_argument("--chat", help="Chat username, ID, or invite link. Defaults to TELEGRAM_TEST_CHAT.")
-    parser.add_argument("--limit", type=int, default=20, help="Maximum messages to retrieve (default: 20).")
+    target = parser.add_mutually_exclusive_group()
+    target.add_argument("--chat", help="Chat username, ID, or invite link. Defaults to TELEGRAM_TEST_CHAT.")
+    target.add_argument("--folder", help="Telegram folder name; fetches messages from every chat inside it.")
+    parser.add_argument("--limit", type=int, default=20, help="Maximum messages to retrieve per chat (default: 20).")
     parser.add_argument("--after-id", type=int, help="Only retrieve messages with a greater message ID.")
     parser.add_argument("--after-timestamp", type=parse_timestamp, help="Only retrieve messages after an ISO 8601 timestamp.")
     return parser
 
 
-def print_messages(messages: list[dict[str, object]], chat_identifier: str | int) -> None:
-    """Render structured messages in a deliberately simple terminal format."""
-
+def print_app_header() -> None:
     print("=" * 40)
     print("Tele AI Agent — Telegram Reader")
     print("=" * 40)
-    print(f"\nChat: {messages[0]['chat_name'] if messages else chat_identifier}")
+
+
+def print_chat_messages(chat_label: object, messages: list[dict[str, object]]) -> None:
+    """Render one chat's structured messages in a deliberately simple terminal format."""
+
+    print(f"\nChat: {chat_label}")
     if not messages:
         print("\nNo messages matched the requested filters.")
         return
@@ -53,23 +59,50 @@ def print_messages(messages: list[dict[str, object]], chat_identifier: str | int
         print("\n" + "-" * 40)
 
 
-async def run(args: argparse.Namespace) -> None:
-    settings = load_settings()
-    chat_identifier = args.chat or settings.telegram_test_chat
-    if not chat_identifier:
-        raise SettingsError("Set TELEGRAM_TEST_CHAT in .env or provide --chat.")
-
-    client = create_client(settings)
-    try:
-        await authenticate_client(client)
+async def run_folder(client: object, folder_name: str, args: argparse.Namespace) -> None:
+    chats = await get_folder_chats(client, folder_name)
+    print_app_header()
+    if not chats:
+        print(f"\nFolder '{folder_name}' has no chats.")
+        return
+    for chat in chats:
         messages = await get_messages(
             client,
-            chat_identifier,
+            chat,
             limit=args.limit,
             after_message_id=args.after_id,
             after_timestamp=args.after_timestamp,
         )
-        print_messages(messages, chat_identifier)
+        chat_label = getattr(chat, "title", None) or getattr(chat, "id", None)
+        print_chat_messages(chat_label, messages)
+
+
+async def run_chat(client: object, chat_identifier: object, args: argparse.Namespace) -> None:
+    messages = await get_messages(
+        client,
+        chat_identifier,
+        limit=args.limit,
+        after_message_id=args.after_id,
+        after_timestamp=args.after_timestamp,
+    )
+    print_app_header()
+    chat_label = messages[0]["chat_name"] if messages else chat_identifier
+    print_chat_messages(chat_label, messages)
+
+
+async def run(args: argparse.Namespace) -> None:
+    settings = load_settings()
+
+    client = create_client(settings)
+    try:
+        await authenticate_client(client)
+        if args.folder:
+            await run_folder(client, args.folder, args)
+        else:
+            chat_identifier = args.chat or settings.telegram_test_chat
+            if not chat_identifier:
+                raise SettingsError("Set TELEGRAM_TEST_CHAT in .env, or provide --chat or --folder.")
+            await run_chat(client, chat_identifier, args)
     finally:
         await client.disconnect()
 
@@ -78,7 +111,7 @@ def main() -> int:
     args = build_parser().parse_args()
     try:
         asyncio.run(run(args))
-    except (SettingsError, TelegramAuthenticationError, TelegramReaderError) as exc:
+    except (SettingsError, TelegramAuthenticationError, TelegramReaderError, TelegramFolderError) as exc:
         print(f"Error: {exc}")
         return 1
     except KeyboardInterrupt:
