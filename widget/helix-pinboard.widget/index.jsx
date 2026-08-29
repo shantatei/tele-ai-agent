@@ -336,7 +336,7 @@ export const className = `
 
   .cat-track {
     position: relative;
-    height: 90px;
+    height: 60px;
     margin-top: 4px;
     overflow: hidden;
   }
@@ -344,14 +344,14 @@ export const className = `
   .cat-mover {
     position: absolute;
     bottom: 0;
-    left: -160px;
-    width: 144px;
-    height: 90px;
+    left: -110px;
+    width: 96px;
+    height: 60px;
     animation: cat-dash 4.6s linear infinite;
   }
 
   @keyframes cat-dash {
-    from { left: -160px; }
+    from { left: -110px; }
     to   { left: 320px; }
   }
 
