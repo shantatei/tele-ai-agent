@@ -7,7 +7,7 @@ import asyncio
 from datetime import datetime, timezone
 
 from app.ai.processor import AIProcessorError, UsageTotals, classify_message, create_ai_client
-from app.ai.prompts import is_chat_ignored, load_ignored_chats
+from app.ai.prompts import is_chat_ignored, load_ignored_chats, load_target_folders
 from app.ai.schemas import MessageClassification
 from app.config.settings import SettingsError, load_settings
 from app.database.database import get_connection
@@ -33,7 +33,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Read Telegram messages to the terminal.")
     target = parser.add_mutually_exclusive_group()
     target.add_argument("--chat", help="Chat username, ID, or invite link. Defaults to TELEGRAM_TEST_CHAT.")
-    target.add_argument("--folder", help="Telegram folder name; fetches messages from every chat inside it.")
+    target.add_argument(
+        "--folder",
+        help=(
+            "Telegram folder name; fetches messages from every chat inside it. If omitted "
+            "along with --chat, falls back to the '## Folders to query' list in template.md "
+            "(processing all of them in one run), then to TELEGRAM_TEST_CHAT."
+        ),
+    )
     parser.add_argument("--limit", type=int, default=20, help="Maximum messages to retrieve per chat (default: 20).")
     parser.add_argument("--after-id", type=int, help="Only retrieve messages with a greater message ID.")
     parser.add_argument("--after-timestamp", type=parse_timestamp, help="Only retrieve messages after an ISO 8601 timestamp.")
@@ -140,7 +147,7 @@ async def run_folder(
     ignored_chats: set[str],
 ) -> None:
     chats = await get_folder_chats(client, folder_name)
-    print_app_header()
+    print(f"\n{'=' * 40}\nFolder: {folder_name}\n{'=' * 40}")
     if not chats:
         print(f"\nFolder '{folder_name}' has no chats.")
         return
@@ -180,7 +187,6 @@ async def run_chat(
         after_message_id=args.after_id,
         after_timestamp=args.after_timestamp,
     )
-    print_app_header()
     chat_label = messages[0]["chat_name"] if messages else chat_identifier
     if ai_client is not None and is_chat_ignored(str(chat_label), ignored_chats):
         print(f"\nChat: {chat_label}")
@@ -213,15 +219,30 @@ async def run(args: argparse.Namespace) -> None:
     run_stats = {"classified": 0, "cached": 0}
     ignored_chats = load_ignored_chats() if args.ai_filter else set()
 
+    if args.folder:
+        target_folders = [args.folder]
+    elif args.chat:
+        target_folders = []
+    else:
+        target_folders = load_target_folders()
+
     client = create_client(settings)
     try:
         await authenticate_client(client)
-        if args.folder:
-            await run_folder(client, args.folder, args, ai_client, usage_totals, db_connection, run_stats, ignored_chats)
+        print_app_header()
+        if target_folders:
+            for folder_name in target_folders:
+                try:
+                    await run_folder(client, folder_name, args, ai_client, usage_totals, db_connection, run_stats, ignored_chats)
+                except TelegramFolderError as exc:
+                    print(f"\nFolder: {folder_name}\nError: {exc}")
         else:
             chat_identifier = args.chat or settings.telegram_test_chat
             if not chat_identifier:
-                raise SettingsError("Set TELEGRAM_TEST_CHAT in .env, or provide --chat or --folder.")
+                raise SettingsError(
+                    "No chat/folder specified. Provide --chat or --folder, add a "
+                    "'## Folders to query' section to template.md, or set TELEGRAM_TEST_CHAT."
+                )
             await run_chat(client, chat_identifier, args, ai_client, usage_totals, db_connection, run_stats, ignored_chats)
         if usage_totals is not None:
             print_usage_summary(usage_totals, run_stats)

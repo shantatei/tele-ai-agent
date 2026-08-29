@@ -38,14 +38,35 @@ State a default timezone/locale if relevant times are otherwise ambiguous:
 Any formatting preference for the summary field:
 - e.g. "Keep summaries under 20 words. Always include a payment amount if mentioned."
 
-## Ignored chats (special section - parsed structurally, not just free text)
+## Special sections (parsed structurally, not just free text)
 
-Unlike the sections above (which are just appended to the AI's prompt as guidance),
-`## Ignored chats` is actually parsed by the app. Any chat whose name contains one of
-these entries (case-insensitive substring match) is skipped entirely before any AI call
-is made - zero cost for that chat, not just hidden output. The heading must read exactly
-`## Ignored chats`; list one keyword per bullet:
+Unlike the sections above (which are just appended to the AI's prompt as guidance), the
+two sections below are actually parsed by the app. Their headings must match exactly.
 
+### `## Folders to query`
+
+When neither `--chat` nor `--folder` is given on the command line, every folder listed
+here is processed in one run instead of requiring a separate invocation per folder.
+Folder names must match your real Telegram folder names exactly (unlike the substring
+matching used for ignored chats/topics below):
+
+```markdown
+## Folders to query
+- Helix House
+- NUS Modules
+```
+
+### `## Ignored chats`
+
+Any chat whose name contains one of these entries (case-insensitive substring match) is
+skipped entirely before any AI call is made - zero cost, not just hidden output. This
+also matches a Telegram forum topic's name for chats that use the forum/topics feature,
+so you can ignore just one topic within a chat while the rest of that chat is still
+processed normally:
+
+```markdown
+## Ignored chats
 - Laundry
 - Marketplace
+```
 

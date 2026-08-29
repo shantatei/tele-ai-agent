@@ -45,6 +45,30 @@ def load_user_guidelines() -> str | None:
     return content or None
 
 
+def _parse_bullets_under_heading(heading: str) -> list[str]:
+    """Return, in order, the bullet items under a specific '## <heading>' in template.md.
+
+    Only that exact heading's bullets are collected; free-text paragraphs within the
+    section are skipped, and the section ends at the next heading of any level.
+    """
+
+    if not TEMPLATE_PATH.exists():
+        return []
+
+    items: list[str] = []
+    in_section = False
+    for line in TEMPLATE_PATH.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            in_section = stripped.lstrip("#").strip().lower() == heading.lower()
+            continue
+        if in_section and stripped.startswith(("-", "*")):
+            item = stripped[1:].strip()
+            if item:
+                items.append(item)
+    return items
+
+
 def load_ignored_chats() -> set[str]:
     """Parse the '## Ignored chats' section of template.md into a set of lowercase
     keywords to skip entirely - no AI call, no cost - matched by substring against a
@@ -54,21 +78,25 @@ def load_ignored_chats() -> set[str]:
     parsed here; only this specific heading's bullet list.
     """
 
-    if not TEMPLATE_PATH.exists():
-        return set()
+    return {name.lower() for name in _parse_bullets_under_heading("Ignored chats")}
 
-    ignored: set[str] = set()
-    in_section = False
-    for line in TEMPLATE_PATH.read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if stripped.startswith("#"):
-            in_section = stripped.lstrip("#").strip().lower() == "ignored chats"
-            continue
-        if in_section and stripped.startswith(("-", "*")):
-            name = stripped[1:].strip()
-            if name:
-                ignored.add(name.lower())
-    return ignored
+
+def load_target_folders() -> list[str]:
+    """Parse the '## Folders to query' section of template.md into an ordered list of
+    Telegram folder names (case preserved - folder names must match exactly, unlike the
+    substring matching used for ignored chats/topics).
+
+    When this section is present and non-empty, and neither --chat nor --folder is
+    given on the command line, the app processes every listed folder in one run instead
+    of requiring a separate invocation per folder. Duplicate entries are kept only once,
+    preserving first occurrence order.
+    """
+
+    folders: list[str] = []
+    for name in _parse_bullets_under_heading("Folders to query"):
+        if name not in folders:
+            folders.append(name)
+    return folders
 
 
 def is_chat_ignored(chat_name: str | None, ignored_chats: set[str], topic_name: str | None = None) -> bool:

@@ -130,5 +130,45 @@ class IsChatIgnoredTests(unittest.TestCase):
         self.assertFalse(prompts.is_chat_ignored("Helix Badminton", {"laundry"}, topic_name=None))
 
 
+class LoadTargetFoldersTests(unittest.TestCase):
+    def test_returns_empty_list_when_file_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            missing_path = Path(tmp_dir) / "template.md"
+            with patch.object(prompts, "TEMPLATE_PATH", missing_path):
+                self.assertEqual(prompts.load_target_folders(), [])
+
+    def test_returns_empty_list_when_no_section(self) -> None:
+        content = "## Ignored chats\n- Laundry\n"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "template.md"
+            path.write_text(content, encoding="utf-8")
+            with patch.object(prompts, "TEMPLATE_PATH", path):
+                self.assertEqual(prompts.load_target_folders(), [])
+
+    def test_preserves_order_and_exact_case(self) -> None:
+        content = "## Folders to query\n- Helix House\n- NUS Modules\n"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "template.md"
+            path.write_text(content, encoding="utf-8")
+            with patch.object(prompts, "TEMPLATE_PATH", path):
+                self.assertEqual(prompts.load_target_folders(), ["Helix House", "NUS Modules"])
+
+    def test_deduplicates_preserving_first_occurrence(self) -> None:
+        content = "## Folders to query\n- Helix House\n- NUS Modules\n- Helix House\n"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "template.md"
+            path.write_text(content, encoding="utf-8")
+            with patch.object(prompts, "TEMPLATE_PATH", path):
+                self.assertEqual(prompts.load_target_folders(), ["Helix House", "NUS Modules"])
+
+    def test_stops_at_next_heading(self) -> None:
+        content = "## Folders to query\n- Helix House\n\n## Ignored chats\n- Laundry\n"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "template.md"
+            path.write_text(content, encoding="utf-8")
+            with patch.object(prompts, "TEMPLATE_PATH", path):
+                self.assertEqual(prompts.load_target_folders(), ["Helix House"])
+
+
 if __name__ == "__main__":
     unittest.main()

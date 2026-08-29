@@ -91,9 +91,17 @@ Read every chat inside a Telegram folder instead of a single chat with `--folder
 python -m app.main --folder "My Folder Name" --limit 5
 ```
 
+If you omit both `--chat` and `--folder`, the app looks for a `## Folders to query`
+section in `template.md` and processes every folder listed there in one run (see
+below) — useful once you're monitoring more than one folder and don't want to remember
+folder names on the command line each time. Falls back to `TELEGRAM_TEST_CHAT` if that
+section is absent or empty.
+
 Messages are printed oldest to newest after the optional filters are applied. The
 message-ID filter is delegated to Telegram; timestamp filtering is applied locally.
-`--limit`, `--after-id`, and `--after-timestamp` apply per chat when using `--folder`.
+`--limit`, `--after-id`, and `--after-timestamp` apply per chat regardless of how many
+folders are being processed. Each folder's chats print under a `Folder: <name>` header,
+so you always see exactly which chats a run actually queried as it happens.
 
 Add `--ai-filter` to classify each message with Claude and print only the ones judged
 relevant (event, task, important, or information — `ignore` results are hidden), with
@@ -128,7 +136,19 @@ prompt for every message. Useful things to put in it:
 The base categories, required fields, and output schema always take priority over
 anything in `template.md` — it can only add guidance, not override the schema.
 
-One section is special: `## Ignored chats`. Entries listed there (one per bullet, matched
+Two sections are special — parsed structurally by the app, not just passed to the AI:
+
+`## Folders to query` lists every folder to process when no `--chat`/`--folder` is given
+on the command line, so you can monitor several folders without typing their names each
+run, or comment one out (remove the bullet) to temporarily stop querying it:
+
+```markdown
+## Folders to query
+- Helix House
+- NUS Modules
+```
+
+`## Ignored chats` entries (one per bullet, matched
 as a case-insensitive substring) are skipped **before any AI call is made** — zero cost,
 not just hidden output. An entry matches either a chat's display name (skips the whole
 chat, before it's even fetched) or, for a chat that uses Telegram's forum/topics feature,
