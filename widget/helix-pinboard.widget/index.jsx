@@ -117,8 +117,8 @@ export const render = ({ output }) => {
 };
 
 export const className = `
-  top: 40px;
-  right: 40px;
+  top: 12px;
+  right: 70px;
   width: 340px;
 
   font-family: "Karla", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
