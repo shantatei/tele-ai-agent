@@ -17,7 +17,7 @@ sys.path.insert(0, "/Users/shantatei/Documents/Personal Projects/Telegram AI Age
 from app.config.settings import load_settings
 from app.notion.client import NotionSyncError, create_notion_client, resolve_data_source_id
 
-MAX_EVENTS = 8
+MAX_EVENTS = 20
 
 
 def fetch_upcoming_events() -> list[dict[str, object]]:

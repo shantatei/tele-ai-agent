@@ -220,6 +220,26 @@ export const className = `
     display: flex;
     flex-direction: column;
     gap: 8px;
+    max-height: 340px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+
+  .board::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  .board::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .board::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: 3px;
+  }
+
+  .board::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.24);
   }
 
   .card {
@@ -336,9 +356,12 @@ export const className = `
   }
 
   .cat-gif {
+    /* Übersicht serves every widget as one flat page rooted at "/", so a plain
+       relative url() here would resolve against the page root, not this
+       widget's folder - the path must include the widget's own folder name. */
     width: 100%;
     height: 100%;
-    background-image: url('assets/running-cat-transparent.gif');
+    background-image: url('/helix-pinboard.widget/assets/running-cat-transparent.gif');
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center bottom;
