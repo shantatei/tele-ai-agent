@@ -94,3 +94,32 @@ def store_ai_result(connection: sqlite3.Connection, message_row_id: int, result:
     connection.execute("UPDATE messages SET processed = 1 WHERE id = ?", (message_row_id,))
     connection.commit()
     return cursor.lastrowid
+
+
+def get_unsynced_ai_results(connection: sqlite3.Connection) -> list[dict[str, Any]]:
+    """Return ai_results (joined with their source message) that are not classified
+    as ``ignore`` and have no row yet in ``notion_sync`` - i.e. still pending sync."""
+
+    rows = connection.execute(
+        """
+        SELECT ai_results.*, messages.chat_name AS chat_name, messages.telegram_message_id AS telegram_message_id
+        FROM ai_results
+        JOIN messages ON ai_results.message_id = messages.id
+        WHERE ai_results.classification != 'ignore'
+          AND NOT EXISTS (
+              SELECT 1 FROM notion_sync WHERE notion_sync.ai_result_id = ai_results.id
+          )
+        ORDER BY ai_results.id
+        """
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def record_notion_sync(connection: sqlite3.Connection, ai_result_id: int, notion_page_id: str) -> None:
+    """Record a successful sync so the same ai_result is never sent to Notion twice."""
+
+    connection.execute(
+        "INSERT INTO notion_sync (ai_result_id, notion_page_id, synced, synced_at) VALUES (?, ?, 1, datetime('now'))",
+        (ai_result_id, notion_page_id),
+    )
+    connection.commit()

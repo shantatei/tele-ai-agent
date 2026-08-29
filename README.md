@@ -6,14 +6,14 @@ This is the first, deliberately small part of Tele AI Agent. The eventual flow i
 Telegram → AI → SQLite → Notion
 ```
 
-This repository implements **Telegram → Terminal**, **Telegram → AI → Terminal**, and
-**Telegram → AI → SQLite**. It authenticates a local Telegram account, retrieves messages
-from a single chat or every chat inside a Telegram folder, and prints structured message
-data to the terminal. An optional `--ai-filter` flag classifies each message with Claude
-Sonnet 5 (event/task/important/information/ignore), extracts structured details (dates,
-times, locations, deadlines), and persists both the message and its classification to a
-local SQLite database — so a message is never sent to the AI twice. It contains no Notion
-or menu-bar functionality yet.
+This repository now implements the **full Phase 1 pipeline: Telegram → AI → SQLite →
+Notion**. It authenticates a local Telegram account, retrieves messages from a single
+chat or every chat inside a Telegram folder, and prints structured message data to the
+terminal. An optional `--ai-filter` flag classifies each message with Claude Sonnet 5
+(event/task/important/information/ignore), extracts structured details (dates, times,
+locations, deadlines), and persists both the message and its classification to a local
+SQLite database — so a message is never sent to the AI twice. An optional `--sync-notion`
+flag then creates a Notion page for each not-yet-synced result. No menu-bar UI yet.
 
 ## Progress so far
 
@@ -24,7 +24,7 @@ or menu-bar functionality yet.
 - [x] Print structured message data to the terminal
 - [x] AI classification/extraction layer via `--ai-filter` (Claude, Milestone 2)
 - [x] Persist messages and AI results to SQLite; skip re-processing already-seen messages (Milestone 3)
-- [ ] Sync results to Notion (Milestone 4 — not started)
+- [x] Sync AI results to Notion via `--sync-notion`; skip already-synced results (Milestone 4)
 
 ## Prerequisites
 
@@ -59,14 +59,18 @@ TELEGRAM_API_ID=123456
 TELEGRAM_API_HASH=your_api_hash
 TELEGRAM_TEST_CHAT=some_chat_username
 ANTHROPIC_API_KEY=your_anthropic_api_key
+NOTION_API_KEY=your_notion_integration_token
+NOTION_DATABASE_ID=your_notion_database_id
 ```
 
 `TELEGRAM_TEST_CHAT` can be a username, a numeric ID, or an invite link that your
 account can access. `ANTHROPIC_API_KEY` is only required if you use `--ai-filter`
 (get one at [console.anthropic.com](https://console.anthropic.com); a Google Gemini
 free-tier key was tried first but turned out to require prepaid billing credits even
-on nominally-free models, so this app uses Claude instead). `.env` and the generated
-Telethon session file are ignored by Git.
+on nominally-free models, so this app uses Claude instead). `NOTION_API_KEY` and
+`NOTION_DATABASE_ID` are only required if you use `--sync-notion` — see
+[Syncing to Notion](#syncing-to-notion-sync-notion) below for setup. `.env` and the
+generated Telethon session file are ignored by Git.
 
 ## Run
 
@@ -147,8 +151,8 @@ run, or comment one out (remove the bullet) to temporarily stop querying it:
 
 ```markdown
 ## Folders to query
-- Helix House
 - NUS Modules
+- NUS CCAS
 ```
 
 `## Ignored chats` entries (one per bullet, matched
@@ -160,7 +164,9 @@ get processed normally):
 
 ```markdown
 ## Ignored chats
-- Laundry
+E.g:
+- Dinner
+- Supper
 ```
 
 ### Model choice and cost
@@ -171,6 +177,44 @@ Sonnet 5 matched Opus 5's classification accuracy at roughly half the cost, whil
 4.5 made real errors (a wrong relative-date calculation, and silently misclassifying an
 actual task as `ignore`) — not worth the extra savings for a tool whose job is not missing
 things. Change `MODEL` in `app/ai/processor.py` if you want to experiment further.
+
+### Syncing to Notion (`--sync-notion`)
+
+Add `--sync-notion` to create a Notion page for every AI result not yet synced:
+
+```bash
+python -m app.main --folder "My Folder Name" --ai-filter --sync-notion
+```
+
+It runs after any `--ai-filter` processing in the same invocation, and also picks up
+anything left over from earlier runs — so it can be used **on its own**, with no
+`--chat`/`--folder`, just to retry a sync that failed previously:
+
+```bash
+python -m app.main --sync-notion
+```
+
+One-time setup:
+
+1. Create a Notion integration at [notion.so/my-integrations](https://www.notion.so/my-integrations)
+   and copy its token into `NOTION_API_KEY`.
+2. Create a database with these properties (Name/Title, Type/Select, Date/Date,
+   Deadline/Date, Location/Text, Importance/Select, Source Chat/Text, Telegram Message
+   ID/Text, Summary/Text, Status/Select, Created/Date) — or ask an assistant with Notion
+   access to create it for you from this spec.
+3. Share that database with your integration (`•••` menu → Connections → your integration).
+4. Copy the database ID from its URL into `NOTION_DATABASE_ID`.
+
+Each result becomes one page: `Type` is the classification (Event/Task/Important/
+Information — `ignore` results are never synced), `Status` starts as "Not Started" for
+you to update as you act on items. A result is matched to its Notion page via a local
+`notion_sync` table, so a message's result is never synced twice even across separate
+runs — a failed sync for one item is reported and skipped without blocking the rest of
+the batch, and picked up again on the next `--sync-notion` run.
+
+Notion's API (as of the `notion-client` v3.1.0 / Notion-Version `2025-09-03` used here)
+creates pages under a database's *data source* ID, not the plain database ID shown in
+its URL — the app resolves this automatically from `NOTION_DATABASE_ID` on each run.
 
 ## First authentication
 

@@ -22,6 +22,8 @@ class Settings:
     telegram_test_chat: str | None = None
     telegram_session_name: str = "tele_ai_agent"
     anthropic_api_key: str | None = None
+    notion_api_key: str | None = None
+    notion_database_id: str | None = None
 
 
 def load_settings(env_file: Path | None = None) -> Settings:
@@ -38,6 +40,8 @@ def load_settings(env_file: Path | None = None) -> Settings:
     test_chat = os.getenv("TELEGRAM_TEST_CHAT", "").strip() or None
     session_name = os.getenv("TELEGRAM_SESSION_NAME", "tele_ai_agent").strip()
     anthropic_api_key = os.getenv("ANTHROPIC_API_KEY", "").strip() or None
+    notion_api_key = os.getenv("NOTION_API_KEY", "").strip() or None
+    notion_database_id = os.getenv("NOTION_DATABASE_ID", "").strip() or None
 
     if not raw_api_id:
         raise SettingsError("TELEGRAM_API_ID is required. Add it to .env or your environment.")
@@ -58,4 +62,6 @@ def load_settings(env_file: Path | None = None) -> Settings:
         telegram_test_chat=test_chat,
         telegram_session_name=session_name,
         anthropic_api_key=anthropic_api_key,
+        notion_api_key=notion_api_key,
+        notion_database_id=notion_database_id,
     )

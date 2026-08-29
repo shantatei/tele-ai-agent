@@ -7,7 +7,13 @@ import unittest
 
 from app.ai.schemas import MessageClassification
 from app.database.database import get_connection
-from app.database.repository import find_or_create_message, get_ai_result, store_ai_result
+from app.database.repository import (
+    find_or_create_message,
+    get_ai_result,
+    get_unsynced_ai_results,
+    record_notion_sync,
+    store_ai_result,
+)
 
 
 def make_message(message_id: int = 1, chat_id: int = 100, text: str = "Hello") -> dict[str, object]:
@@ -116,6 +122,51 @@ class AIResultPersistenceTests(unittest.TestCase):
         self.assertTrue(already_processed_again)
         cached = get_ai_result(self.connection, second_row_id)
         self.assertEqual(cached.title, "Do X")
+
+
+class NotionSyncPersistenceTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.connection = get_connection(":memory:")
+
+    def tearDown(self) -> None:
+        self.connection.close()
+
+    def _store_result(self, message_id: int, classification: MessageClassification) -> int:
+        message_row_id, _ = find_or_create_message(self.connection, make_message(message_id=message_id))
+        store_ai_result(self.connection, message_row_id, classification)
+        return self.connection.execute(
+            "SELECT id FROM ai_results WHERE message_id = ?", (message_row_id,)
+        ).fetchone()["id"]
+
+    def test_ignore_results_are_excluded(self) -> None:
+        self._store_result(1, MessageClassification(classification="ignore"))
+
+        self.assertEqual(get_unsynced_ai_results(self.connection), [])
+
+    def test_non_ignore_results_are_pending_by_default(self) -> None:
+        ai_result_id = self._store_result(1, MessageClassification(classification="event", title="Meeting"))
+
+        pending = get_unsynced_ai_results(self.connection)
+
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(pending[0]["id"], ai_result_id)
+        self.assertEqual(pending[0]["title"], "Meeting")
+        self.assertEqual(pending[0]["chat_name"], "Example Chat")
+
+    def test_synced_results_are_excluded_from_pending(self) -> None:
+        ai_result_id = self._store_result(1, MessageClassification(classification="task", title="Do X"))
+        record_notion_sync(self.connection, ai_result_id, "notion-page-123")
+
+        self.assertEqual(get_unsynced_ai_results(self.connection), [])
+
+    def test_only_unsynced_results_are_returned_among_several(self) -> None:
+        synced_id = self._store_result(1, MessageClassification(classification="task", title="Synced"))
+        pending_id = self._store_result(2, MessageClassification(classification="event", title="Pending"))
+        record_notion_sync(self.connection, synced_id, "notion-page-1")
+
+        pending = get_unsynced_ai_results(self.connection)
+
+        self.assertEqual([row["id"] for row in pending], [pending_id])
 
 
 if __name__ == "__main__":

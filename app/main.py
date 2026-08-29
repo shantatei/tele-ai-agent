@@ -11,7 +11,15 @@ from app.ai.prompts import is_chat_ignored, load_ignored_chats, load_target_fold
 from app.ai.schemas import MessageClassification
 from app.config.settings import SettingsError, load_settings
 from app.database.database import get_connection
-from app.database.repository import find_or_create_message, get_ai_result, store_ai_result
+from app.database.repository import (
+    find_or_create_message,
+    get_ai_result,
+    get_unsynced_ai_results,
+    record_notion_sync,
+    store_ai_result,
+)
+from app.notion.client import NotionSyncError, create_notion_client, resolve_data_source_id
+from app.notion.sync import build_notion_properties, create_notion_page
 from app.telegram.client import TelegramAuthenticationError, authenticate_client, create_client
 from app.telegram.folders import TelegramFolderError, get_folder_chats
 from app.telegram.reader import TelegramReaderError, get_messages
@@ -50,6 +58,16 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Classify each message with Claude and print only non-'ignore' results with "
             "extracted details (requires ANTHROPIC_API_KEY)."
+        ),
+    )
+    parser.add_argument(
+        "--sync-notion",
+        action="store_true",
+        help=(
+            "Sync any not-yet-synced AI results to the Notion database (requires "
+            "NOTION_API_KEY and NOTION_DATABASE_ID). Runs after any --ai-filter "
+            "processing this invocation, and also picks up results left over from "
+            "earlier runs, so it can be used on its own to retry a failed sync."
         ),
     )
     return parser
@@ -211,11 +229,35 @@ def print_usage_summary(usage_totals: UsageTotals, run_stats: dict[str, int]) ->
     print("=" * 40)
 
 
+def sync_pending_results_to_notion(db_connection: object, notion_client_obj: object, data_source_id: str) -> None:
+    """Create a Notion page for every ai_result not yet synced; skip and report
+    failures per-item rather than aborting the whole batch."""
+
+    rows = get_unsynced_ai_results(db_connection)
+    if not rows:
+        print("\nNotion sync: nothing pending.")
+        return
+    print(f"\nNotion sync: {len(rows)} pending item(s)...")
+    synced = 0
+    failed = 0
+    for row in rows:
+        try:
+            properties = build_notion_properties(row)
+            page_id = create_notion_page(notion_client_obj, data_source_id, properties)
+            record_notion_sync(db_connection, row["id"], page_id)
+            synced += 1
+        except NotionSyncError as exc:
+            print(f"  Failed to sync ai_result {row['id']}: {exc}")
+            failed += 1
+    print(f"Notion sync complete: {synced} synced, {failed} failed.")
+
+
 async def run(args: argparse.Namespace) -> None:
     settings = load_settings()
     ai_client = create_ai_client(settings.anthropic_api_key) if args.ai_filter else None
     usage_totals = UsageTotals() if args.ai_filter else None
-    db_connection = get_connection() if args.ai_filter else None
+    needs_db = args.ai_filter or args.sync_notion
+    db_connection = get_connection() if needs_db else None
     run_stats = {"classified": 0, "cached": 0}
     ignored_chats = load_ignored_chats() if args.ai_filter else set()
 
@@ -246,6 +288,10 @@ async def run(args: argparse.Namespace) -> None:
             await run_chat(client, chat_identifier, args, ai_client, usage_totals, db_connection, run_stats, ignored_chats)
         if usage_totals is not None:
             print_usage_summary(usage_totals, run_stats)
+        if args.sync_notion:
+            notion_client_obj = create_notion_client(settings.notion_api_key)
+            data_source_id = resolve_data_source_id(notion_client_obj, settings.notion_database_id)
+            sync_pending_results_to_notion(db_connection, notion_client_obj, data_source_id)
     finally:
         await client.disconnect()
         if db_connection is not None:
@@ -262,6 +308,7 @@ def main() -> int:
         TelegramReaderError,
         TelegramFolderError,
         AIProcessorError,
+        NotionSyncError,
     ) as exc:
         print(f"Error: {exc}")
         return 1
