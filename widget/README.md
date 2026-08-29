@@ -32,7 +32,8 @@ already configured (`NOTION_API_KEY` / `NOTION_DATABASE_ID` in `.env`).
 ## How it works
 
 - Refreshes every 5 minutes (`refreshFrequency` in `index.jsx`).
-- Shows up to 8 items where `Date` or `Deadline` is today or later, soonest first.
+- Shows every synced item, newest first (by Deadline, then Date, then when it was
+  added to Notion for anything with neither) — scroll the board to see older ones.
 - Clicking a card opens that item's Notion page.
 - If Notion is unreachable or misconfigured, it shows an error message instead of
   crashing (see `fetch_events.py`'s `except` handling).
@@ -42,5 +43,5 @@ already configured (`NOTION_API_KEY` / `NOTION_DATABASE_ID` in `.env`).
 - **Position**: edit the `top` / `right` values at the top of `index.jsx`'s
   `className` export (currently pinned to the top-right of the screen).
 - **Refresh rate**: `refreshFrequency` (milliseconds) in `index.jsx`.
-- **How many items**: `MAX_EVENTS` in `fetch_events.py`.
+- **Board height before it scrolls**: `max-height` on `.board` in `index.jsx`.
 - **Colors/animations**: the rest of the `className` export in `index.jsx`.

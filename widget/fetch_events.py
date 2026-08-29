@@ -1,4 +1,4 @@
-"""Fetch upcoming events/tasks from the Notion Telegram AI Inbox for the desktop widget.
+"""Fetch every announcement from the Notion Telegram AI Inbox for the desktop widget.
 
 Reuses the already-tested app.config.settings / app.notion.client modules from the
 main project rather than duplicating Notion connection logic. Prints a JSON array to
@@ -10,66 +10,78 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 
 sys.path.insert(0, "/Users/shantatei/Documents/Personal Projects/Telegram AI Agent")
 
 from app.config.settings import load_settings
 from app.notion.client import NotionSyncError, create_notion_client, resolve_data_source_id
 
-MAX_EVENTS = 20
+PAGE_SIZE = 100
 
 
-def fetch_upcoming_events() -> list[dict[str, object]]:
+def fetch_all_events() -> list[dict[str, object]]:
+    """Fetch every synced row (no date filtering), newest-first by whichever of
+    Deadline/Date/created-time is most relevant to that row."""
+
     settings = load_settings()
     client = create_notion_client(settings.notion_api_key)
     data_source_id = resolve_data_source_id(client, settings.notion_database_id)
 
-    today = date.today().isoformat()
-    result = client.data_sources.query(
-        data_source_id=data_source_id,
-        filter={
-            "or": [
-                {"property": "Date", "date": {"on_or_after": today}},
-                {"property": "Deadline", "date": {"on_or_after": today}},
-            ]
-        },
-        sorts=[{"property": "Date", "direction": "ascending"}],
-        page_size=MAX_EVENTS,
-    )
-
     events = []
-    for page in result["results"]:
-        props = page["properties"]
-        title_parts = props["Name"]["title"]
-        name = title_parts[0]["plain_text"] if title_parts else "Untitled"
-        type_select = props["Type"]["select"]
-        importance_select = props["Importance"]["select"]
-        location_rich = props["Location"]["rich_text"]
-        summary_rich = props["Summary"]["rich_text"]
-        date_prop = props["Date"]["date"]
-        deadline_prop = props["Deadline"]["date"]
-        source_chat_rich = props["Source Chat"]["rich_text"]
+    start_cursor = None
+    while True:
+        query_args: dict[str, object] = {"data_source_id": data_source_id, "page_size": PAGE_SIZE}
+        if start_cursor:
+            query_args["start_cursor"] = start_cursor
+        result = client.data_sources.query(**query_args)
 
-        events.append(
-            {
-                "name": name,
-                "type": type_select["name"] if type_select else "Information",
-                "importance": importance_select["name"] if importance_select else None,
-                "location": location_rich[0]["plain_text"] if location_rich else None,
-                "summary": summary_rich[0]["plain_text"] if summary_rich else None,
-                "date": date_prop["start"] if date_prop else None,
-                "deadline": deadline_prop["start"] if deadline_prop else None,
-                "sourceChat": source_chat_rich[0]["plain_text"] if source_chat_rich else None,
-                "url": page["url"],
-            }
-        )
+        for page in result["results"]:
+            props = page["properties"]
+            title_parts = props["Name"]["title"]
+            name = title_parts[0]["plain_text"] if title_parts else "Untitled"
+            type_select = props["Type"]["select"]
+            importance_select = props["Importance"]["select"]
+            location_rich = props["Location"]["rich_text"]
+            summary_rich = props["Summary"]["rich_text"]
+            date_prop = props["Date"]["date"]
+            deadline_prop = props["Deadline"]["date"]
+            source_chat_rich = props["Source Chat"]["rich_text"]
+
+            date_str = date_prop["start"] if date_prop else None
+            deadline_str = deadline_prop["start"] if deadline_prop else None
+            # Undated rows (e.g. general Information items) still need a sort
+            # position, so fall back to when the page was created.
+            sort_key = deadline_str or date_str or page["created_time"]
+
+            events.append(
+                {
+                    "name": name,
+                    "type": type_select["name"] if type_select else "Information",
+                    "importance": importance_select["name"] if importance_select else None,
+                    "location": location_rich[0]["plain_text"] if location_rich else None,
+                    "summary": summary_rich[0]["plain_text"] if summary_rich else None,
+                    "date": date_str,
+                    "deadline": deadline_str,
+                    "sourceChat": source_chat_rich[0]["plain_text"] if source_chat_rich else None,
+                    "url": page["url"],
+                    "_sortKey": sort_key,
+                }
+            )
+
+        if not result.get("has_more"):
+            break
+        start_cursor = result["next_cursor"]
+
+    events.sort(key=lambda event: event["_sortKey"], reverse=True)
+    for event in events:
+        del event["_sortKey"]
     return events
 
 
 def main() -> None:
     try:
-        events = fetch_upcoming_events()
+        events = fetch_all_events()
         print(json.dumps({"events": events, "fetchedAt": datetime.now(timezone.utc).isoformat()}))
     except NotionSyncError as exc:
         print(json.dumps({"error": str(exc)}))
