@@ -7,6 +7,7 @@ import asyncio
 from datetime import datetime, timezone
 
 from app.ai.processor import AIProcessorError, UsageTotals, classify_message, create_ai_client
+from app.ai.prompts import is_chat_ignored, load_ignored_chats
 from app.ai.schemas import MessageClassification
 from app.config.settings import SettingsError, load_settings
 from app.database.database import get_connection
@@ -127,6 +128,7 @@ async def run_folder(
     usage_totals: UsageTotals | None,
     db_connection: object | None,
     run_stats: dict[str, int],
+    ignored_chats: set[str],
 ) -> None:
     chats = await get_folder_chats(client, folder_name)
     print_app_header()
@@ -134,6 +136,11 @@ async def run_folder(
         print(f"\nFolder '{folder_name}' has no chats.")
         return
     for chat in chats:
+        chat_label = getattr(chat, "title", None) or getattr(chat, "id", None)
+        if ai_client is not None and is_chat_ignored(getattr(chat, "title", None), ignored_chats):
+            print(f"\nChat: {chat_label}")
+            print("Skipped (ignored chat - no AI call made).")
+            continue
         messages = await get_messages(
             client,
             chat,
@@ -141,7 +148,6 @@ async def run_folder(
             after_message_id=args.after_id,
             after_timestamp=args.after_timestamp,
         )
-        chat_label = getattr(chat, "title", None) or getattr(chat, "id", None)
         if ai_client is not None:
             print_ai_results(chat_label, messages, ai_client, usage_totals, db_connection, run_stats)
         else:
@@ -156,6 +162,7 @@ async def run_chat(
     usage_totals: UsageTotals | None,
     db_connection: object | None,
     run_stats: dict[str, int],
+    ignored_chats: set[str],
 ) -> None:
     messages = await get_messages(
         client,
@@ -166,6 +173,10 @@ async def run_chat(
     )
     print_app_header()
     chat_label = messages[0]["chat_name"] if messages else chat_identifier
+    if ai_client is not None and is_chat_ignored(str(chat_label), ignored_chats):
+        print(f"\nChat: {chat_label}")
+        print("Skipped (ignored chat - no AI call made).")
+        return
     if ai_client is not None:
         print_ai_results(chat_label, messages, ai_client, usage_totals, db_connection, run_stats)
     else:
@@ -191,17 +202,18 @@ async def run(args: argparse.Namespace) -> None:
     usage_totals = UsageTotals() if args.ai_filter else None
     db_connection = get_connection() if args.ai_filter else None
     run_stats = {"classified": 0, "cached": 0}
+    ignored_chats = load_ignored_chats() if args.ai_filter else set()
 
     client = create_client(settings)
     try:
         await authenticate_client(client)
         if args.folder:
-            await run_folder(client, args.folder, args, ai_client, usage_totals, db_connection, run_stats)
+            await run_folder(client, args.folder, args, ai_client, usage_totals, db_connection, run_stats, ignored_chats)
         else:
             chat_identifier = args.chat or settings.telegram_test_chat
             if not chat_identifier:
                 raise SettingsError("Set TELEGRAM_TEST_CHAT in .env, or provide --chat or --folder.")
-            await run_chat(client, chat_identifier, args, ai_client, usage_totals, db_connection, run_stats)
+            await run_chat(client, chat_identifier, args, ai_client, usage_totals, db_connection, run_stats, ignored_chats)
         if usage_totals is not None:
             print_usage_summary(usage_totals, run_stats)
     finally:

@@ -37,3 +37,15 @@ State a default timezone/locale if relevant times are otherwise ambiguous:
 ### Style preferences
 Any formatting preference for the summary field:
 - e.g. "Keep summaries under 20 words. Always include a payment amount if mentioned."
+
+## Ignored chats (special section - parsed structurally, not just free text)
+
+Unlike the sections above (which are just appended to the AI's prompt as guidance),
+`## Ignored chats` is actually parsed by the app. Any chat whose name contains one of
+these entries (case-insensitive substring match) is skipped entirely before any AI call
+is made - zero cost for that chat, not just hidden output. The heading must read exactly
+`## Ignored chats`; list one keyword per bullet:
+
+- Laundry
+- Marketplace
+

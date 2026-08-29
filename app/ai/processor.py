@@ -9,7 +9,7 @@ import anthropic
 from app.ai.prompts import build_system_prompt
 from app.ai.schemas import MessageClassification
 
-MODEL = "claude-opus-5"
+MODEL = "claude-sonnet-5"
 NO_TEXT_PLACEHOLDER = "[No text content]"
 
 # USD price per 1M tokens, (input, output), for models this app may use.

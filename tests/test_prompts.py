@@ -57,5 +57,65 @@ class BuildSystemPromptTests(unittest.TestCase):
         self.assertLess(result.index("Categories:"), result.index("additional guidelines"))
 
 
+class LoadIgnoredChatsTests(unittest.TestCase):
+    def test_returns_empty_set_when_file_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            missing_path = Path(tmp_dir) / "template.md"
+            with patch.object(prompts, "TEMPLATE_PATH", missing_path):
+                self.assertEqual(prompts.load_ignored_chats(), set())
+
+    def test_parses_bullets_under_ignored_chats_heading(self) -> None:
+        content = (
+            "# AI Extraction Guidelines\n\n"
+            "## Priorities\n"
+            "- Badminton\n\n"
+            "## Ignored chats\n"
+            "Some explanatory paragraph that is not a bullet.\n"
+            "- Laundry\n"
+            "* Marketplace\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "template.md"
+            path.write_text(content, encoding="utf-8")
+            with patch.object(prompts, "TEMPLATE_PATH", path):
+                result = prompts.load_ignored_chats()
+
+        self.assertEqual(result, {"laundry", "marketplace"})
+        self.assertNotIn("badminton", result)
+
+    def test_stops_at_next_heading(self) -> None:
+        content = "## Ignored chats\n- Laundry\n\n## Style preferences\n- Keep it short\n"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "template.md"
+            path.write_text(content, encoding="utf-8")
+            with patch.object(prompts, "TEMPLATE_PATH", path):
+                result = prompts.load_ignored_chats()
+
+        self.assertEqual(result, {"laundry"})
+
+    def test_no_ignored_chats_section_returns_empty_set(self) -> None:
+        content = "## Priorities\n- Badminton\n"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "template.md"
+            path.write_text(content, encoding="utf-8")
+            with patch.object(prompts, "TEMPLATE_PATH", path):
+                self.assertEqual(prompts.load_ignored_chats(), set())
+
+
+class IsChatIgnoredTests(unittest.TestCase):
+    def test_matches_case_insensitive_substring(self) -> None:
+        self.assertTrue(prompts.is_chat_ignored("Helix Laundry Room", {"laundry"}))
+        self.assertTrue(prompts.is_chat_ignored("LAUNDRY updates", {"laundry"}))
+
+    def test_no_match_returns_false(self) -> None:
+        self.assertFalse(prompts.is_chat_ignored("Helix Badminton", {"laundry"}))
+
+    def test_empty_ignore_set_never_matches(self) -> None:
+        self.assertFalse(prompts.is_chat_ignored("Laundry", set()))
+
+    def test_none_chat_name_returns_false(self) -> None:
+        self.assertFalse(prompts.is_chat_ignored(None, {"laundry"}))
+
+
 if __name__ == "__main__":
     unittest.main()

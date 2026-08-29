@@ -45,6 +45,39 @@ def load_user_guidelines() -> str | None:
     return content or None
 
 
+def load_ignored_chats() -> set[str]:
+    """Parse the '## Ignored chats' section of template.md into a set of lowercase
+    keywords to skip entirely - no AI call, no cost - matched by substring against a
+    chat's display name. Free-text guidance elsewhere in template.md (e.g. under
+    'Extra ignore rules') is not parsed here; only this specific heading's bullet list.
+    """
+
+    if not TEMPLATE_PATH.exists():
+        return set()
+
+    ignored: set[str] = set()
+    in_section = False
+    for line in TEMPLATE_PATH.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            in_section = stripped.lstrip("#").strip().lower() == "ignored chats"
+            continue
+        if in_section and stripped.startswith(("-", "*")):
+            name = stripped[1:].strip()
+            if name:
+                ignored.add(name.lower())
+    return ignored
+
+
+def is_chat_ignored(chat_name: str | None, ignored_chats: set[str]) -> bool:
+    """True if any ignored keyword appears (case-insensitively) in the chat's name."""
+
+    if not chat_name or not ignored_chats:
+        return False
+    lowered = chat_name.lower()
+    return any(keyword in lowered for keyword in ignored_chats)
+
+
 def build_system_prompt(sent_at: datetime | None) -> str:
     """Build the system prompt, anchoring relative-date resolution to the message's send time."""
 

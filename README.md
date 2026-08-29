@@ -10,10 +10,10 @@ This repository implements **Telegram → Terminal**, **Telegram → AI → Term
 **Telegram → AI → SQLite**. It authenticates a local Telegram account, retrieves messages
 from a single chat or every chat inside a Telegram folder, and prints structured message
 data to the terminal. An optional `--ai-filter` flag classifies each message with Claude
-(event/task/important/information/ignore), extracts structured details (dates, times,
-locations, deadlines), and persists both the message and its classification to a local
-SQLite database — so a message is never sent to the AI twice. It contains no Notion or
-menu-bar functionality yet.
+Sonnet 5 (event/task/important/information/ignore), extracts structured details (dates,
+times, locations, deadlines), and persists both the message and its classification to a
+local SQLite database — so a message is never sent to the AI twice. It contains no Notion
+or menu-bar functionality yet.
 
 ## Progress so far
 
@@ -127,6 +127,25 @@ prompt for every message. Useful things to put in it:
 
 The base categories, required fields, and output schema always take priority over
 anything in `template.md` — it can only add guidance, not override the schema.
+
+One section is special: `## Ignored chats`. Chats listed there (one per bullet, matched
+as a case-insensitive substring of the chat's name) are skipped **before any AI call is
+made** — zero cost for that chat, not just hidden output. Useful for noisy chats you never
+want classified (e.g. a laundry-booking group):
+
+```markdown
+## Ignored chats
+- Laundry
+```
+
+### Model choice and cost
+
+`--ai-filter` uses **Claude Sonnet 5** by default (`app/ai/processor.py`'s `MODEL`
+constant). A side-by-side test against Claude Opus 5 and Haiku 4.5 on real messages found
+Sonnet 5 matched Opus 5's classification accuracy at roughly half the cost, while Haiku
+4.5 made real errors (a wrong relative-date calculation, and silently misclassifying an
+actual task as `ignore`) — not worth the extra savings for a tool whose job is not missing
+things. Change `MODEL` in `app/ai/processor.py` if you want to experiment further.
 
 ## First authentication
 
