@@ -109,11 +109,7 @@ export const render = ({ output }) => {
 
       <div className="cat-track">
         <div className="cat-mover">
-          <img
-            className="cat-gif"
-            src="assets/running-cat-transparent.gif"
-            alt=""
-          />
+          <div className="cat-gif" />
         </div>
       </div>
     </div>
@@ -330,6 +326,7 @@ export const className = `
     bottom: 0;
     left: -20%;
     width: 46px;
+    height: 34px;
     animation: cat-dash 4.6s linear infinite;
   }
 
@@ -339,9 +336,12 @@ export const className = `
   }
 
   .cat-gif {
-    display: block;
     width: 100%;
-    height: auto;
+    height: 100%;
+    background-image: url('assets/running-cat-transparent.gif');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center bottom;
     filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.5));
   }
 
