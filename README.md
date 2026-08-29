@@ -25,6 +25,7 @@ flag then creates a Notion page for each not-yet-synced result. No menu-bar UI y
 - [x] AI classification/extraction layer via `--ai-filter` (Claude, Milestone 2)
 - [x] Persist messages and AI results to SQLite; skip re-processing already-seen messages (Milestone 3)
 - [x] Sync AI results to Notion via `--sync-notion`; skip already-synced results (Milestone 4)
+- [x] Optional macOS desktop widget showing upcoming events/tasks from Notion (see [Desktop widget](#desktop-widget-optional-macos))
 
 ## Prerequisites
 
@@ -215,6 +216,13 @@ the batch, and picked up again on the next `--sync-notion` run.
 Notion's API (as of the `notion-client` v3.1.0 / Notion-Version `2025-09-03` used here)
 creates pages under a database's *data source* ID, not the plain database ID shown in
 its URL — the app resolves this automatically from `NOTION_DATABASE_ID` on each run.
+
+## Desktop widget (optional, macOS)
+
+`widget/` contains an [Übersicht](https://tracesof.net/uebersicht) desktop widget,
+"Helix Pinboard", that shows upcoming events/tasks/deadlines straight from the Notion
+inbox above — a lighter alternative to a full menu-bar app for glancing at what's
+coming up. See [widget/README.md](widget/README.md) for install steps and how it works.
 
 ## First authentication
 

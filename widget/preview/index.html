@@ -1,0 +1,352 @@
+<title>Helix Pinboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --surface-base: #1c1a22;
+    --surface-base-2: #23202a;
+    --surface-card: rgba(255, 255, 255, 0.055);
+    --surface-card-hover: rgba(255, 255, 255, 0.09);
+    --border-soft: rgba(255, 255, 255, 0.09);
+    --text-primary: #f2efe9;
+    --text-muted: #a79e93;
+    --text-faint: #726a60;
+    --accent-event: #e8a33d;
+    --accent-task: #5fa8a0;
+    --accent-important: #e2634f;
+    --accent-info: #8b87a6;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -8px rgba(0, 0, 0, 0.55);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--surface-base);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    font-family: "Karla", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: var(--text-primary);
+  }
+
+  /* ---- Preview-only simulated desktop backdrop. Not part of the widget itself:
+     Übersicht renders the widget over your real wallpaper, not this. ---- */
+  .preview-desktop {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background:
+      radial-gradient(circle at 18% 20%, rgba(232, 163, 61, 0.16), transparent 42%),
+      radial-gradient(circle at 82% 78%, rgba(95, 168, 160, 0.14), transparent 46%),
+      linear-gradient(160deg, #2b2733 0%, #1a1820 55%, #14121a 100%);
+  }
+  .preview-label {
+    position: fixed;
+    top: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    z-index: 2;
+    font-weight: 600;
+  }
+
+  /* ============ THE WIDGET ============ */
+  .widget {
+    position: relative;
+    z-index: 1;
+    width: 340px;
+    background: rgba(28, 26, 34, 0.62);
+    backdrop-filter: blur(28px) saturate(140%);
+    -webkit-backdrop-filter: blur(28px) saturate(140%);
+    border: 1px solid var(--border-soft);
+    border-radius: 18px;
+    padding: 18px 16px 16px;
+    box-shadow: var(--shadow-card);
+  }
+
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2px 14px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .masthead-title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .masthead-badge {
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+    background: linear-gradient(135deg, var(--accent-event), #c97f22);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+    /* Drop your own logo/GIF here instead, e.g.:
+       background: url('./assets/logo.gif') center / cover; */
+  }
+
+  .masthead-title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 16.5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  .masthead-sub {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--text-faint);
+    margin-top: 1px;
+  }
+
+  .live-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10.5px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-task);
+    box-shadow: 0 0 0 0 rgba(95, 168, 160, 0.55);
+    animation: pulse 2.4s ease-out infinite;
+  }
+
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(95, 168, 160, 0.55); }
+    70%  { box-shadow: 0 0 0 6px rgba(95, 168, 160, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(95, 168, 160, 0); }
+  }
+
+  .board {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .card {
+    position: relative;
+    display: flex;
+    gap: 10px;
+    padding: 10px 12px 10px 13px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    cursor: default;
+    opacity: 0;
+    transform: translateY(10px) rotate(var(--tilt, 0deg));
+    animation: pin-in 0.55s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+    animation-delay: var(--delay, 0s);
+    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 3px;
+    border-radius: 3px;
+    background: var(--tag-color, var(--accent-info));
+  }
+
+  .card:hover {
+    background: var(--surface-card-hover);
+    transform: translateY(-2px) rotate(0deg);
+    box-shadow: 0 10px 22px -10px rgba(0, 0, 0, 0.6);
+  }
+
+  @keyframes pin-in {
+    0%   { opacity: 0; transform: translateY(10px) rotate(var(--tilt, 0deg)) scale(0.97); }
+    60%  { opacity: 1; }
+    100% { opacity: 1; transform: translateY(0) rotate(var(--tilt, 0deg)) scale(1); }
+  }
+
+  .card-icon {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--tag-color, var(--accent-info)) 22%, transparent);
+    color: var(--tag-color, var(--accent-info));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    margin-top: 1px;
+    /* Swap for an <img src="./assets/icon-event.png"> per category if preferred. */
+  }
+
+  .card-body { min-width: 0; flex: 1; }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 3px;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .card-meta .dot { color: var(--text-faint); }
+
+  .card-chat {
+    font-size: 10px;
+    color: var(--text-faint);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .footer-hint {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-soft);
+    font-size: 10px;
+    color: var(--text-faint);
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+
+  /* ---- Running cat: doubles as the "fetching" indicator. The GIF already has
+     its own run-cycle baked in; this just carries it across the widget. ---- */
+  .cat-track {
+    position: relative;
+    height: 30px;
+    margin-top: 4px;
+    overflow: hidden;
+  }
+
+  .cat-mover {
+    position: absolute;
+    bottom: 0;
+    left: -20%;
+    width: 46px;
+    animation: cat-dash 4.6s linear infinite;
+  }
+
+  @keyframes cat-dash {
+    from { left: -20%; }
+    to   { left: 112%; }
+  }
+
+  .cat-gif {
+    display: block;
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.5));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card { animation: none; opacity: 1; transform: none; }
+    .live-dot { animation: none; }
+    .cat-track { display: none; }
+  }
+</style>
+
+<div class="preview-desktop"></div>
+<div class="preview-label">Artifact preview only — the real widget sits directly on your desktop</div>
+
+<div class="widget">
+  <div class="masthead">
+    <div>
+      <div class="masthead-title-row">
+        <div class="masthead-badge">🧬</div>
+        <div class="masthead-title">Helix Pinboard</div>
+      </div>
+      <div class="masthead-sub">from Telegram, via Notion</div>
+    </div>
+    <div class="live-status">
+      <span class="live-dot"></span>
+      2m ago
+    </div>
+  </div>
+
+  <div class="board">
+    <div class="card" style="--tag-color: var(--accent-event); --tilt: -0.6deg; --delay: 0.05s;">
+      <div class="card-icon">◆</div>
+      <div class="card-body">
+        <div class="card-title">Session moved to Monday 7–9pm</div>
+        <div class="card-meta">Mon, Aug 31 <span class="dot">·</span> 7:00 PM</div>
+        <div class="card-chat">Helix Badminton</div>
+      </div>
+    </div>
+
+    <div class="card" style="--tag-color: var(--accent-task); --tilt: 0.5deg; --delay: 0.13s;">
+      <div class="card-icon">✓</div>
+      <div class="card-body">
+        <div class="card-title">Fill out sign-up form</div>
+        <div class="card-meta">Due Sun, Aug 30</div>
+        <div class="card-chat">Helix Badminton</div>
+      </div>
+    </div>
+
+    <div class="card" style="--tag-color: var(--accent-event); --tilt: -0.3deg; --delay: 0.21s;">
+      <div class="card-icon">◆</div>
+      <div class="card-body">
+        <div class="card-title">Mandala Flow intro class</div>
+        <div class="card-meta">Mon, Aug 31</div>
+        <div class="card-chat">Helix Yogis</div>
+      </div>
+    </div>
+
+    <div class="card" style="--tag-color: var(--accent-important); --tilt: 0.4deg; --delay: 0.29s;">
+      <div class="card-icon">!</div>
+      <div class="card-body">
+        <div class="card-title">Card passed to residential office</div>
+        <div class="card-meta">Today</div>
+        <div class="card-chat">Helixians AY26/27</div>
+      </div>
+    </div>
+
+    <div class="card" style="--tag-color: var(--accent-task); --tilt: -0.5deg; --delay: 0.37s;">
+      <div class="card-icon">✓</div>
+      <div class="card-body">
+        <div class="card-title">O'Comm Recruitment — sign up</div>
+        <div class="card-meta">Due Fri, Sep 11</div>
+        <div class="card-chat">Helixians AY26/27</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-hint">refreshes every 5 min · click a card in the real widget to open it in Notion</div>
+
+  <div class="cat-track">
+    <div class="cat-mover">
+      <img class="cat-gif" src="../assets/running-cat-transparent.gif" alt="" />
+    </div>
+  </div>
+</div>
