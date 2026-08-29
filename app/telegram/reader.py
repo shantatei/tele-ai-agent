@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from telethon.errors import RPCError
+from telethon.tl.functions.messages import GetForumTopicsRequest
 
 
 class TelegramReaderError(RuntimeError):
@@ -24,7 +25,32 @@ def _display_name(entity: Any) -> str | None:
     return full_name or getattr(entity, "username", None)
 
 
-async def message_to_dict(message: Any, chat: Any, sender: Any | None = None) -> dict[str, Any]:
+def _extract_topic_id(message: Any) -> int | None:
+    """Return the forum topic ID a message belongs to, if the chat uses forum topics."""
+
+    reply_to = getattr(message, "reply_to", None)
+    if reply_to is not None and getattr(reply_to, "forum_topic", False):
+        return getattr(reply_to, "reply_to_msg_id", None)
+    return None
+
+
+async def _get_topic_titles(client: Any, chat: Any) -> dict[int, str]:
+    """Map topic ID -> title for a forum-enabled chat. Empty dict for ordinary chats."""
+
+    if not getattr(chat, "forum", False):
+        return {}
+    try:
+        result = await client(
+            GetForumTopicsRequest(peer=chat, offset_date=None, offset_id=0, offset_topic=0, limit=100)
+        )
+    except (RPCError, OSError):
+        return {}
+    return {topic.id: topic.title for topic in result.topics}
+
+
+async def message_to_dict(
+    message: Any, chat: Any, sender: Any | None = None, topic_name: str | None = None
+) -> dict[str, Any]:
     """Convert a Telethon message to Phase 1's stable, structured format."""
 
     if sender is None:
@@ -38,6 +64,7 @@ async def message_to_dict(message: Any, chat: Any, sender: Any | None = None) ->
         "message_id": getattr(message, "id", None),
         "chat_id": getattr(message, "chat_id", None) or getattr(chat, "id", None),
         "chat_name": _display_name(chat),
+        "topic_name": topic_name,
         "sender_id": getattr(message, "sender_id", None) or getattr(sender, "id", None),
         "sender_name": _display_name(sender) if sender is not None else None,
         "message_text": text if text else "[No text content]",
@@ -74,6 +101,7 @@ async def get_messages(
 
     try:
         chat = await client.get_entity(chat_identifier)
+        topic_titles = await _get_topic_titles(client, chat)
         iterator = client.iter_messages(chat, limit=limit, min_id=after_message_id or 0)
         messages: list[dict[str, Any]] = []
         async for message in iterator:
@@ -81,7 +109,9 @@ async def get_messages(
             if after_timestamp is not None and message_date is not None:
                 if message_date <= after_timestamp:
                     break
-            messages.append(await message_to_dict(message, chat))
+            topic_id = _extract_topic_id(message)
+            topic_name = topic_titles.get(topic_id) if topic_id is not None else None
+            messages.append(await message_to_dict(message, chat, topic_name=topic_name))
     except (RPCError, OSError, ValueError, TypeError) as exc:
         raise TelegramReaderError(
             f"Could not read chat {chat_identifier!r}. Check that it exists and "

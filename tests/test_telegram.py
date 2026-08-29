@@ -17,11 +17,30 @@ class FakeMessage:
         return getattr(self, "_sender", None)
 
 
+class FakeTopic:
+    def __init__(self, id: int, title: str) -> None:
+        self.id = id
+        self.title = title
+
+
+class FakeTopicsResult:
+    def __init__(self, topics: list[FakeTopic]) -> None:
+        self.topics = topics
+
+
+class FakeReplyTo:
+    def __init__(self, forum_topic: bool, reply_to_msg_id: int | None) -> None:
+        self.forum_topic = forum_topic
+        self.reply_to_msg_id = reply_to_msg_id
+
+
 class FakeClient:
-    def __init__(self, chat: object, messages: list[object]) -> None:
+    def __init__(self, chat: object, messages: list[object], topics: list[FakeTopic] | None = None) -> None:
         self.chat = chat
         self.messages = messages
+        self.topics = topics or []
         self.min_id: int | None = None
+        self.topics_requested = False
 
     async def get_entity(self, identifier: object) -> object:
         return self.chat
@@ -34,6 +53,10 @@ class FakeClient:
                 yield message
 
         return iterate()
+
+    async def __call__(self, request: object) -> FakeTopicsResult:
+        self.topics_requested = True
+        return FakeTopicsResult(self.topics)
 
 
 class MessageParsingTests(unittest.IsolatedAsyncioTestCase):
@@ -94,6 +117,69 @@ class MessageParsingTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(client.min_id, 10)
         self.assertEqual([message["message_id"] for message in messages], [12])
+
+    async def test_topic_name_defaults_to_none(self) -> None:
+        chat = SimpleNamespace(id=42, title="Example Chat")
+        message = FakeMessage(id=1, chat_id=42, sender_id=None, message="hi", date=None)
+
+        parsed = await message_to_dict(message, chat)
+
+        self.assertIsNone(parsed["topic_name"])
+
+    async def test_topic_name_is_included_when_provided(self) -> None:
+        chat = SimpleNamespace(id=42, title="Example Chat")
+        message = FakeMessage(id=1, chat_id=42, sender_id=None, message="hi", date=None)
+
+        parsed = await message_to_dict(message, chat, topic_name="Laundry")
+
+        self.assertEqual(parsed["topic_name"], "Laundry")
+
+
+class ForumTopicResolutionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_resolves_topic_name_for_forum_chats(self) -> None:
+        chat = SimpleNamespace(id=42, title="Helixians", forum=True)
+        message = FakeMessage(
+            id=3,
+            chat_id=42,
+            sender_id=None,
+            message="D5 done",
+            date=datetime(2026, 8, 29, tzinfo=timezone.utc),
+            reply_to=FakeReplyTo(forum_topic=True, reply_to_msg_id=3),
+        )
+        client = FakeClient(chat, [message], topics=[FakeTopic(id=3, title="Laundry")])
+
+        messages = await get_messages(client, "helixians", limit=20)
+
+        self.assertTrue(client.topics_requested)
+        self.assertEqual(messages[0]["topic_name"], "Laundry")
+
+    async def test_non_forum_chats_skip_topic_lookup(self) -> None:
+        chat = SimpleNamespace(id=42, title="Regular Chat", forum=False)
+        message = FakeMessage(
+            id=1, chat_id=42, sender_id=None, message="hi", date=datetime(2026, 8, 29, tzinfo=timezone.utc)
+        )
+        client = FakeClient(chat, [message], topics=[FakeTopic(id=3, title="Laundry")])
+
+        messages = await get_messages(client, "regular", limit=20)
+
+        self.assertFalse(client.topics_requested)
+        self.assertIsNone(messages[0]["topic_name"])
+
+    async def test_message_not_in_a_topic_has_no_topic_name(self) -> None:
+        chat = SimpleNamespace(id=42, title="Helixians", forum=True)
+        message = FakeMessage(
+            id=1,
+            chat_id=42,
+            sender_id=None,
+            message="general chat",
+            date=datetime(2026, 8, 29, tzinfo=timezone.utc),
+            reply_to=None,
+        )
+        client = FakeClient(chat, [message], topics=[FakeTopic(id=3, title="Laundry")])
+
+        messages = await get_messages(client, "helixians", limit=20)
+
+        self.assertIsNone(messages[0]["topic_name"])
 
 
 if __name__ == "__main__":

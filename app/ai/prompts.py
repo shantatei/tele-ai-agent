@@ -48,8 +48,10 @@ def load_user_guidelines() -> str | None:
 def load_ignored_chats() -> set[str]:
     """Parse the '## Ignored chats' section of template.md into a set of lowercase
     keywords to skip entirely - no AI call, no cost - matched by substring against a
-    chat's display name. Free-text guidance elsewhere in template.md (e.g. under
-    'Extra ignore rules') is not parsed here; only this specific heading's bullet list.
+    chat's display name, or against a forum topic's name for chats that use Telegram's
+    topics feature (a single chat can then have some topics ignored and others kept).
+    Free-text guidance elsewhere in template.md (e.g. under 'Extra ignore rules') is not
+    parsed here; only this specific heading's bullet list.
     """
 
     if not TEMPLATE_PATH.exists():
@@ -69,13 +71,16 @@ def load_ignored_chats() -> set[str]:
     return ignored
 
 
-def is_chat_ignored(chat_name: str | None, ignored_chats: set[str]) -> bool:
-    """True if any ignored keyword appears (case-insensitively) in the chat's name."""
+def is_chat_ignored(chat_name: str | None, ignored_chats: set[str], topic_name: str | None = None) -> bool:
+    """True if any ignored keyword appears (case-insensitively) in the chat's name or,
+    for forum-enabled chats with topics, the message's topic name."""
 
-    if not chat_name or not ignored_chats:
+    if not ignored_chats:
         return False
-    lowered = chat_name.lower()
-    return any(keyword in lowered for keyword in ignored_chats)
+    for label in (chat_name, topic_name):
+        if label and any(keyword in label.lower() for keyword in ignored_chats):
+            return True
+    return False
 
 
 def build_system_prompt(sent_at: datetime | None) -> str:

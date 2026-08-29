@@ -116,6 +116,19 @@ class IsChatIgnoredTests(unittest.TestCase):
     def test_none_chat_name_returns_false(self) -> None:
         self.assertFalse(prompts.is_chat_ignored(None, {"laundry"}))
 
+    def test_matches_on_topic_name_when_chat_name_does_not_match(self) -> None:
+        self.assertTrue(
+            prompts.is_chat_ignored("Helixians AY26/27", {"laundry"}, topic_name="Laundry")
+        )
+
+    def test_unmatched_chat_and_topic_returns_false(self) -> None:
+        self.assertFalse(
+            prompts.is_chat_ignored("Helixians AY26/27", {"laundry"}, topic_name="General")
+        )
+
+    def test_topic_name_none_does_not_error(self) -> None:
+        self.assertFalse(prompts.is_chat_ignored("Helix Badminton", {"laundry"}, topic_name=None))
+
 
 if __name__ == "__main__":
     unittest.main()

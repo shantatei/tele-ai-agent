@@ -128,10 +128,12 @@ prompt for every message. Useful things to put in it:
 The base categories, required fields, and output schema always take priority over
 anything in `template.md` — it can only add guidance, not override the schema.
 
-One section is special: `## Ignored chats`. Chats listed there (one per bullet, matched
-as a case-insensitive substring of the chat's name) are skipped **before any AI call is
-made** — zero cost for that chat, not just hidden output. Useful for noisy chats you never
-want classified (e.g. a laundry-booking group):
+One section is special: `## Ignored chats`. Entries listed there (one per bullet, matched
+as a case-insensitive substring) are skipped **before any AI call is made** — zero cost,
+not just hidden output. An entry matches either a chat's display name (skips the whole
+chat, before it's even fetched) or, for a chat that uses Telegram's forum/topics feature,
+a topic's name (skips only messages in that topic, so other topics in the same chat still
+get processed normally):
 
 ```markdown
 ## Ignored chats

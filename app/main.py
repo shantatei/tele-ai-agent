@@ -79,13 +79,19 @@ def print_ai_results(
     usage_totals: UsageTotals,
     db_connection: object,
     run_stats: dict[str, int],
+    ignored_chats: set[str],
 ) -> None:
     """Classify each new message (reusing stored results for already-processed ones)
-    and print only non-'ignore' results with extracted details."""
+    and print only non-'ignore' results with extracted details. Messages in an ignored
+    forum topic are skipped entirely - no database write, no AI call."""
 
     print(f"\nChat: {chat_label}")
     shown = 0
+    skipped_topics = 0
     for message in messages:
+        if is_chat_ignored(None, ignored_chats, topic_name=message.get("topic_name")):
+            skipped_topics += 1
+            continue
         message_row_id, already_processed = find_or_create_message(db_connection, message)
         result: MessageClassification | None = get_ai_result(db_connection, message_row_id) if already_processed else None
         if result is None:
@@ -117,7 +123,10 @@ def print_ai_results(
         print("-" * 40)
 
     if shown == 0:
-        print("\nNo relevant messages (everything classified as ignore).")
+        if skipped_topics and skipped_topics == len(messages):
+            print("\nAll messages were in an ignored topic - skipped entirely.")
+        else:
+            print("\nNo relevant messages (everything classified as ignore).")
 
 
 async def run_folder(
@@ -149,7 +158,7 @@ async def run_folder(
             after_timestamp=args.after_timestamp,
         )
         if ai_client is not None:
-            print_ai_results(chat_label, messages, ai_client, usage_totals, db_connection, run_stats)
+            print_ai_results(chat_label, messages, ai_client, usage_totals, db_connection, run_stats, ignored_chats)
         else:
             print_chat_messages(chat_label, messages)
 
@@ -178,7 +187,7 @@ async def run_chat(
         print("Skipped (ignored chat - no AI call made).")
         return
     if ai_client is not None:
-        print_ai_results(chat_label, messages, ai_client, usage_totals, db_connection, run_stats)
+        print_ai_results(chat_label, messages, ai_client, usage_totals, db_connection, run_stats, ignored_chats)
     else:
         print_chat_messages(chat_label, messages)
 
