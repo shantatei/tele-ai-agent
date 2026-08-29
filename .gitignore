@@ -7,6 +7,10 @@
 *.session
 *.session-journal
 
+# Local SQLite database - contains real Telegram message content
+data/*.db
+data/*.db-journal
+
 # Local Python environment and generated files
 .venv/
 __pycache__/

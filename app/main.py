@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 from app.ai.processor import AIProcessorError, UsageTotals, classify_message, create_ai_client
 from app.ai.schemas import MessageClassification
 from app.config.settings import SettingsError, load_settings
+from app.database.database import get_connection
+from app.database.repository import find_or_create_message, get_ai_result, store_ai_result
 from app.telegram.client import TelegramAuthenticationError, authenticate_client, create_client
 from app.telegram.folders import TelegramFolderError, get_folder_chats
 from app.telegram.reader import TelegramReaderError, get_messages
@@ -74,13 +76,23 @@ def print_ai_results(
     messages: list[dict[str, object]],
     ai_client: object,
     usage_totals: UsageTotals,
+    db_connection: object,
+    run_stats: dict[str, int],
 ) -> None:
-    """Classify each message and print only non-'ignore' results with extracted details."""
+    """Classify each new message (reusing stored results for already-processed ones)
+    and print only non-'ignore' results with extracted details."""
 
     print(f"\nChat: {chat_label}")
     shown = 0
     for message in messages:
-        result: MessageClassification = classify_message(ai_client, message, usage_totals)
+        message_row_id, already_processed = find_or_create_message(db_connection, message)
+        result: MessageClassification | None = get_ai_result(db_connection, message_row_id) if already_processed else None
+        if result is None:
+            result = classify_message(ai_client, message, usage_totals)
+            store_ai_result(db_connection, message_row_id, result)
+            run_stats["classified"] += 1
+        else:
+            run_stats["cached"] += 1
         if result.classification == "ignore":
             continue
         shown += 1
@@ -113,6 +125,8 @@ async def run_folder(
     args: argparse.Namespace,
     ai_client: object | None,
     usage_totals: UsageTotals | None,
+    db_connection: object | None,
+    run_stats: dict[str, int],
 ) -> None:
     chats = await get_folder_chats(client, folder_name)
     print_app_header()
@@ -129,7 +143,7 @@ async def run_folder(
         )
         chat_label = getattr(chat, "title", None) or getattr(chat, "id", None)
         if ai_client is not None:
-            print_ai_results(chat_label, messages, ai_client, usage_totals)
+            print_ai_results(chat_label, messages, ai_client, usage_totals, db_connection, run_stats)
         else:
             print_chat_messages(chat_label, messages)
 
@@ -140,6 +154,8 @@ async def run_chat(
     args: argparse.Namespace,
     ai_client: object | None,
     usage_totals: UsageTotals | None,
+    db_connection: object | None,
+    run_stats: dict[str, int],
 ) -> None:
     messages = await get_messages(
         client,
@@ -151,15 +167,17 @@ async def run_chat(
     print_app_header()
     chat_label = messages[0]["chat_name"] if messages else chat_identifier
     if ai_client is not None:
-        print_ai_results(chat_label, messages, ai_client, usage_totals)
+        print_ai_results(chat_label, messages, ai_client, usage_totals, db_connection, run_stats)
     else:
         print_chat_messages(chat_label, messages)
 
 
-def print_usage_summary(usage_totals: UsageTotals) -> None:
+def print_usage_summary(usage_totals: UsageTotals, run_stats: dict[str, int]) -> None:
     cost = usage_totals.estimated_cost_usd()
     print("\n" + "=" * 40)
     print("AI usage this run")
+    print(f"Newly classified: {run_stats['classified']}")
+    print(f"Already processed (reused from database): {run_stats['cached']}")
     print(f"Input tokens:  {usage_totals.input_tokens}")
     print(f"Output tokens: {usage_totals.output_tokens}")
     if cost is not None:
@@ -171,21 +189,25 @@ async def run(args: argparse.Namespace) -> None:
     settings = load_settings()
     ai_client = create_ai_client(settings.anthropic_api_key) if args.ai_filter else None
     usage_totals = UsageTotals() if args.ai_filter else None
+    db_connection = get_connection() if args.ai_filter else None
+    run_stats = {"classified": 0, "cached": 0}
 
     client = create_client(settings)
     try:
         await authenticate_client(client)
         if args.folder:
-            await run_folder(client, args.folder, args, ai_client, usage_totals)
+            await run_folder(client, args.folder, args, ai_client, usage_totals, db_connection, run_stats)
         else:
             chat_identifier = args.chat or settings.telegram_test_chat
             if not chat_identifier:
                 raise SettingsError("Set TELEGRAM_TEST_CHAT in .env, or provide --chat or --folder.")
-            await run_chat(client, chat_identifier, args, ai_client, usage_totals)
+            await run_chat(client, chat_identifier, args, ai_client, usage_totals, db_connection, run_stats)
         if usage_totals is not None:
-            print_usage_summary(usage_totals)
+            print_usage_summary(usage_totals, run_stats)
     finally:
         await client.disconnect()
+        if db_connection is not None:
+            db_connection.close()
 
 
 def main() -> int:

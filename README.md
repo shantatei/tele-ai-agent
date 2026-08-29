@@ -6,13 +6,14 @@ This is the first, deliberately small part of Tele AI Agent. The eventual flow i
 Telegram → AI → SQLite → Notion
 ```
 
-This repository implements **Telegram → Terminal** and an optional **Telegram → AI → Terminal**
-path. It authenticates a local Telegram account, retrieves messages from a single chat
-or every chat inside a Telegram folder, returns structured message data inside the
-reader module, and prints that data in the terminal. An optional `--ai-filter` flag
-classifies each message with Claude (event/task/important/information/ignore) and
-extracts structured details (dates, times, locations, deadlines). It contains no
-database, Notion, or menu-bar functionality yet.
+This repository implements **Telegram → Terminal**, **Telegram → AI → Terminal**, and
+**Telegram → AI → SQLite**. It authenticates a local Telegram account, retrieves messages
+from a single chat or every chat inside a Telegram folder, and prints structured message
+data to the terminal. An optional `--ai-filter` flag classifies each message with Claude
+(event/task/important/information/ignore), extracts structured details (dates, times,
+locations, deadlines), and persists both the message and its classification to a local
+SQLite database — so a message is never sent to the AI twice. It contains no Notion or
+menu-bar functionality yet.
 
 ## Progress so far
 
@@ -22,7 +23,7 @@ database, Notion, or menu-bar functionality yet.
 - [x] Filter messages by minimum message ID and/or timestamp
 - [x] Print structured message data to the terminal
 - [x] AI classification/extraction layer via `--ai-filter` (Claude, Milestone 2)
-- [ ] Store results in SQLite (Milestone 3 — not started)
+- [x] Persist messages and AI results to SQLite; skip re-processing already-seen messages (Milestone 3)
 - [ ] Sync results to Notion (Milestone 4 — not started)
 
 ## Prerequisites
@@ -103,7 +104,12 @@ python -m app.main --folder "My Folder Name" --limit 10 --ai-filter
 ```
 
 Each run prints a token-usage summary with an estimated cost at the end (`--ai-filter`
-requires `ANTHROPIC_API_KEY`).
+requires `ANTHROPIC_API_KEY`). Every message and its classification are saved to
+`data/telegram_agent.db` (created automatically); running the same command again reuses
+stored results instead of re-classifying, so repeat runs over overlapping message ranges
+cost nothing extra. The summary reports how many messages were newly classified versus
+reused from the database. `data/telegram_agent.db` contains your real message content and
+is ignored by Git — never commit it.
 
 ## First authentication
 
