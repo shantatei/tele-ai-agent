@@ -38,8 +38,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--ai-filter",
         action="store_true",
         help=(
-            "Classify each message with Gemini and print only non-'ignore' results with "
-            "extracted details (requires GEMINI_API_KEY)."
+            "Classify each message with Claude and print only non-'ignore' results with "
+            "extracted details (requires ANTHROPIC_API_KEY)."
         ),
     )
     return parser
@@ -157,16 +157,19 @@ async def run_chat(
 
 
 def print_usage_summary(usage_totals: UsageTotals) -> None:
+    cost = usage_totals.estimated_cost_usd()
     print("\n" + "=" * 40)
-    print("AI usage this run (Gemini free tier)")
+    print("AI usage this run")
     print(f"Input tokens:  {usage_totals.input_tokens}")
     print(f"Output tokens: {usage_totals.output_tokens}")
+    if cost is not None:
+        print(f"Estimated cost: ${cost:.4f}")
     print("=" * 40)
 
 
 async def run(args: argparse.Namespace) -> None:
     settings = load_settings()
-    ai_client = create_ai_client(settings.gemini_api_key) if args.ai_filter else None
+    ai_client = create_ai_client(settings.anthropic_api_key) if args.ai_filter else None
     usage_totals = UsageTotals() if args.ai_filter else None
 
     client = create_client(settings)

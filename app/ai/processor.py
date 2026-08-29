@@ -1,17 +1,23 @@
-"""Gemini-based classification and structured extraction for Telegram messages."""
+"""Claude-based classification and structured extraction for Telegram messages."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from google import genai
-from google.genai import errors, types
+import anthropic
 
 from app.ai.prompts import build_system_prompt
 from app.ai.schemas import MessageClassification
 
-MODEL = "gemini-3.5-flash-lite"
+MODEL = "claude-opus-5"
 NO_TEXT_PLACEHOLDER = "[No text content]"
+
+# USD price per 1M tokens, (input, output), for models this app may use.
+PRICING_PER_MTOK: dict[str, tuple[float, float]] = {
+    "claude-opus-5": (5.00, 25.00),
+    "claude-sonnet-5": (2.00, 10.00),
+    "claude-haiku-4-5": (1.00, 5.00),
+}
 
 
 class AIProcessorError(RuntimeError):
@@ -19,29 +25,36 @@ class AIProcessorError(RuntimeError):
 
 
 class UsageTotals:
-    """Accumulates token usage across classification calls."""
+    """Accumulates token usage across classification calls to estimate spend."""
 
     def __init__(self) -> None:
         self.input_tokens = 0
         self.output_tokens = 0
 
-    def add(self, usage_metadata: Any) -> None:
-        self.input_tokens += getattr(usage_metadata, "prompt_token_count", 0) or 0
-        self.output_tokens += getattr(usage_metadata, "candidates_token_count", 0) or 0
+    def add(self, usage: Any) -> None:
+        self.input_tokens += getattr(usage, "input_tokens", 0) or 0
+        self.output_tokens += getattr(usage, "output_tokens", 0) or 0
+
+    def estimated_cost_usd(self, model: str = MODEL) -> float | None:
+        pricing = PRICING_PER_MTOK.get(model)
+        if pricing is None:
+            return None
+        input_price, output_price = pricing
+        return (self.input_tokens / 1_000_000) * input_price + (self.output_tokens / 1_000_000) * output_price
 
 
-def create_ai_client(api_key: str | None) -> genai.Client:
-    """Create the Gemini client, failing clearly if no API key is configured."""
+def create_ai_client(api_key: str | None) -> anthropic.Anthropic:
+    """Create the Claude client, failing clearly if no API key is configured."""
 
     if not api_key:
         raise AIProcessorError(
-            "GEMINI_API_KEY is required for the AI filter. Add it to .env or your environment."
+            "ANTHROPIC_API_KEY is required for the AI filter. Add it to .env or your environment."
         )
-    return genai.Client(api_key=api_key)
+    return anthropic.Anthropic(api_key=api_key)
 
 
 def classify_message(
-    client: genai.Client,
+    client: anthropic.Anthropic,
     message: dict[str, Any],
     usage_totals: UsageTotals | None = None,
 ) -> MessageClassification:
@@ -57,28 +70,23 @@ def classify_message(
 
     system_prompt = build_system_prompt(sent_at=message.get("timestamp"))
     try:
-        response = client.models.generate_content(
+        response = client.messages.parse(
             model=MODEL,
-            contents=text,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                response_mime_type="application/json",
-                response_schema=MessageClassification,
-            ),
+            max_tokens=1024,
+            system=system_prompt,
+            messages=[{"role": "user", "content": text}],
+            output_format=MessageClassification,
         )
-    except errors.ClientError as exc:
-        if exc.code in (401, 403):
-            raise AIProcessorError("Gemini authentication failed. Check GEMINI_API_KEY.") from exc
-        if exc.code == 429:
-            raise AIProcessorError("Gemini rate limit hit. Try again shortly.") from exc
-        raise AIProcessorError(f"Gemini API error ({exc.code}): {exc.message}") from exc
-    except errors.ServerError as exc:
-        raise AIProcessorError(f"Gemini server error ({exc.code}): {exc.message}") from exc
+    except anthropic.AuthenticationError as exc:
+        raise AIProcessorError("Anthropic authentication failed. Check ANTHROPIC_API_KEY.") from exc
+    except anthropic.RateLimitError as exc:
+        raise AIProcessorError("Anthropic rate limit hit. Try again shortly.") from exc
+    except anthropic.APIStatusError as exc:
+        raise AIProcessorError(f"Anthropic API error ({exc.status_code}): {exc.message}") from exc
+    except anthropic.APIConnectionError as exc:
+        raise AIProcessorError("Could not reach the Anthropic API. Check your network.") from exc
 
-    if usage_totals is not None and response.usage_metadata is not None:
-        usage_totals.add(response.usage_metadata)
+    if usage_totals is not None:
+        usage_totals.add(response.usage)
 
-    parsed = response.parsed
-    if not isinstance(parsed, MessageClassification):
-        raise AIProcessorError("Gemini did not return a valid structured classification.")
-    return parsed
+    return response.parsed_output

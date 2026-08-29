@@ -10,7 +10,7 @@ This repository implements **Telegram → Terminal** and an optional **Telegram 
 path. It authenticates a local Telegram account, retrieves messages from a single chat
 or every chat inside a Telegram folder, returns structured message data inside the
 reader module, and prints that data in the terminal. An optional `--ai-filter` flag
-classifies each message with Gemini (event/task/important/information/ignore) and
+classifies each message with Claude (event/task/important/information/ignore) and
 extracts structured details (dates, times, locations, deadlines). It contains no
 database, Notion, or menu-bar functionality yet.
 
@@ -21,7 +21,7 @@ database, Notion, or menu-bar functionality yet.
 - [x] Read messages from every chat inside a named Telegram folder
 - [x] Filter messages by minimum message ID and/or timestamp
 - [x] Print structured message data to the terminal
-- [x] AI classification/extraction layer via `--ai-filter` (Gemini, Milestone 2)
+- [x] AI classification/extraction layer via `--ai-filter` (Claude, Milestone 2)
 - [ ] Store results in SQLite (Milestone 3 — not started)
 - [ ] Sync results to Notion (Milestone 4 — not started)
 
@@ -57,14 +57,15 @@ Then edit `.env` and fill in:
 TELEGRAM_API_ID=123456
 TELEGRAM_API_HASH=your_api_hash
 TELEGRAM_TEST_CHAT=some_chat_username
-GEMINI_API_KEY=your_gemini_api_key
+ANTHROPIC_API_KEY=your_anthropic_api_key
 ```
 
 `TELEGRAM_TEST_CHAT` can be a username, a numeric ID, or an invite link that your
-account can access. `GEMINI_API_KEY` is only required if you use `--ai-filter`
-(get a free key at [aistudio.google.com](https://aistudio.google.com/app/apikey) —
-the model used, `gemini-3.5-flash-lite`, is free-tier eligible). `.env` and the
-generated Telethon session file are ignored by Git.
+account can access. `ANTHROPIC_API_KEY` is only required if you use `--ai-filter`
+(get one at [console.anthropic.com](https://console.anthropic.com); a Google Gemini
+free-tier key was tried first but turned out to require prepaid billing credits even
+on nominally-free models, so this app uses Claude instead). `.env` and the generated
+Telethon session file are ignored by Git.
 
 ## Run
 
@@ -93,7 +94,7 @@ Messages are printed oldest to newest after the optional filters are applied. Th
 message-ID filter is delegated to Telegram; timestamp filtering is applied locally.
 `--limit`, `--after-id`, and `--after-timestamp` apply per chat when using `--folder`.
 
-Add `--ai-filter` to classify each message with Gemini and print only the ones judged
+Add `--ai-filter` to classify each message with Claude and print only the ones judged
 relevant (event, task, important, or information — `ignore` results are hidden), with
 extracted title/date/time/location/deadline/importance where available:
 
@@ -101,7 +102,8 @@ extracted title/date/time/location/deadline/importance where available:
 python -m app.main --folder "My Folder Name" --limit 10 --ai-filter
 ```
 
-Each run prints a token-usage summary at the end (`--ai-filter` requires `GEMINI_API_KEY`).
+Each run prints a token-usage summary with an estimated cost at the end (`--ai-filter`
+requires `ANTHROPIC_API_KEY`).
 
 ## First authentication
 

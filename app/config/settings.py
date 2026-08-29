@@ -21,7 +21,7 @@ class Settings:
     telegram_api_hash: str
     telegram_test_chat: str | None = None
     telegram_session_name: str = "tele_ai_agent"
-    gemini_api_key: str | None = None
+    anthropic_api_key: str | None = None
 
 
 def load_settings(env_file: Path | None = None) -> Settings:
@@ -37,7 +37,7 @@ def load_settings(env_file: Path | None = None) -> Settings:
     api_hash = os.getenv("TELEGRAM_API_HASH", "").strip()
     test_chat = os.getenv("TELEGRAM_TEST_CHAT", "").strip() or None
     session_name = os.getenv("TELEGRAM_SESSION_NAME", "tele_ai_agent").strip()
-    gemini_api_key = os.getenv("GEMINI_API_KEY", "").strip() or None
+    anthropic_api_key = os.getenv("ANTHROPIC_API_KEY", "").strip() or None
 
     if not raw_api_id:
         raise SettingsError("TELEGRAM_API_ID is required. Add it to .env or your environment.")
@@ -57,5 +57,5 @@ def load_settings(env_file: Path | None = None) -> Settings:
         telegram_api_hash=api_hash,
         telegram_test_chat=test_chat,
         telegram_session_name=session_name,
-        gemini_api_key=gemini_api_key,
+        anthropic_api_key=anthropic_api_key,
     )
