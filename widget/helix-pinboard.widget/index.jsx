@@ -336,7 +336,7 @@ export const className = `
 
   .cat-track {
     position: relative;
-    height: 30px;
+    height: 58px;
     margin-top: 4px;
     overflow: hidden;
   }
@@ -345,8 +345,8 @@ export const className = `
     position: absolute;
     bottom: 0;
     left: -20%;
-    width: 46px;
-    height: 34px;
+    width: 78px;
+    height: 58px;
     animation: cat-dash 4.6s linear infinite;
   }
 
