@@ -104,7 +104,7 @@ export const render = ({ output }) => {
       )}
 
       <div className="footer-hint">
-        refreshes every 5 min &middot; click a card to open it in Notion
+        Telegram synced daily &middot; click a card to open it in Notion
       </div>
 
       <div className="cat-track">
