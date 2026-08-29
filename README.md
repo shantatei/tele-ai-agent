@@ -111,6 +111,23 @@ cost nothing extra. The summary reports how many messages were newly classified 
 reused from the database. `data/telegram_agent.db` contains your real message content and
 is ignored by Git — never commit it.
 
+### Customizing extraction with `template.md`
+
+Copy `template.md.example` to `template.md` (gitignored — safe for personal context) to
+give the AI extra guidance without touching code. Its content is appended to the system
+prompt for every message. Useful things to put in it:
+
+- **Locale** — a default timezone/locale for resolving ambiguous times.
+- **Glossary** — group-specific abbreviations or jargon (e.g. venue codes, role names).
+- **Priorities** — topics/activities that should be weighted as more important.
+- **People to weight** — senders whose messages are usually official/authoritative.
+- **Extra ignore rules** — additional patterns to auto-ignore beyond the default.
+- **Style preferences** — summary length, or specific details to always surface
+  (e.g. payment amounts, contact handles).
+
+The base categories, required fields, and output schema always take priority over
+anything in `template.md` — it can only add guidance, not override the schema.
+
 ## First authentication
 
 On the first run, Telethon will prompt in the terminal for your phone number and the

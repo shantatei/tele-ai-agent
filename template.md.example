@@ -1,0 +1,39 @@
+# AI Extraction Guidelines
+
+This file is optional. If present as `template.md` (copy this file and rename it), its
+content is appended to the AI's system prompt for every message classified by
+`--ai-filter`. Use it to steer classification/extraction without touching code.
+
+`template.md` is gitignored — put personal context here freely (names, interests,
+group-specific jargon) without worrying about it being committed.
+
+The base categories, required fields, and output schema are always enforced regardless
+of what you write here; this file can only add guidance, not override the schema.
+
+## Example sections you might include
+
+### Priorities
+List topics/activities you care most about, so ambiguous messages lean toward higher
+importance when they touch these:
+- e.g. "Badminton and climbing sessions are high priority."
+
+### Glossary
+Define group-specific abbreviations or jargon so the AI doesn't misread them:
+- e.g. "B+ = Boulder+ (a climbing gym chain). USC = University Sports Centre."
+
+### People to weight
+Note organizers/admins whose messages are usually more authoritative than casual chat:
+- e.g. "Messages from the house committee (exco) are usually official announcements."
+
+### Extra ignore rules
+Beyond the default ignore rule (casual/irrelevant chatter), name any other patterns
+you want auto-ignored:
+- e.g. "Ignore messages that are just a single emoji or 'ok'/'noted'/'thanks'."
+
+### Locale
+State a default timezone/locale if relevant times are otherwise ambiguous:
+- e.g. "Assume Singapore time (UTC+8) unless a message states otherwise."
+
+### Style preferences
+Any formatting preference for the summary field:
+- e.g. "Keep summaries under 20 words. Always include a payment amount if mentioned."

@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
+
+TEMPLATE_PATH = Path(__file__).resolve().parent.parent.parent / "template.md"
 
 BASE_INSTRUCTIONS = """You are the AI layer of Tele AI Agent. You read a single Telegram message and \
 classify it into exactly one category, then extract any structured details it contains.
@@ -28,6 +31,20 @@ Messages with no meaningful text (e.g. a photo or sticker with no caption) shoul
 as ignore."""
 
 
+def load_user_guidelines() -> str | None:
+    """Load optional, user-provided extraction guidelines from template.md, if present.
+
+    template.md is gitignored so personal guidance (interests, glossary, people to
+    prioritize, etc.) never leaves the local machine. Its absence is not an error -
+    the base prompt works fine without it.
+    """
+
+    if not TEMPLATE_PATH.exists():
+        return None
+    content = TEMPLATE_PATH.read_text(encoding="utf-8").strip()
+    return content or None
+
+
 def build_system_prompt(sent_at: datetime | None) -> str:
     """Build the system prompt, anchoring relative-date resolution to the message's send time."""
 
@@ -35,4 +52,13 @@ def build_system_prompt(sent_at: datetime | None) -> str:
         reference_line = f"\n\nThis message was sent at: {sent_at.isoformat()}"
     else:
         reference_line = "\n\nThe message's send time is unknown; do not resolve relative dates."
-    return BASE_INSTRUCTIONS + reference_line
+    prompt = BASE_INSTRUCTIONS + reference_line
+
+    guidelines = load_user_guidelines()
+    if guidelines:
+        prompt += (
+            "\n\nThe user has provided the following additional guidelines. Apply them "
+            "when classifying and extracting, but the categories, required fields, and "
+            "output format above always take priority over anything below:\n\n" + guidelines
+        )
+    return prompt

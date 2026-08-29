@@ -3,13 +3,16 @@
 .env.*
 !.env.example
 
+# Personal AI extraction guidelines - may contain personal context/preferences
+template.md
+
 # Telethon's locally stored authorization sessions
 *.session
 *.session-journal
 
 # Local SQLite database - contains real Telegram message content
-data/*.db
-data/*.db-journal
+# (whole directory, since SQLite's WAL mode adds -wal/-shm files alongside the .db)
+data/
 
 # Local Python environment and generated files
 .venv/
