@@ -344,15 +344,15 @@ export const className = `
   .cat-mover {
     position: absolute;
     bottom: 0;
-    left: -30%;
-    width: 120px;
+    left: -160px;
+    width: 144px;
     height: 90px;
     animation: cat-dash 4.6s linear infinite;
   }
 
   @keyframes cat-dash {
-    from { left: -30%; }
-    to   { left: 112%; }
+    from { left: -160px; }
+    to   { left: 320px; }
   }
 
   .cat-gif {
