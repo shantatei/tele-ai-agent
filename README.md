@@ -6,11 +6,13 @@ This is the first, deliberately small part of Tele AI Agent. The eventual flow i
 Telegram → AI → SQLite → Notion
 ```
 
-This repository implements only **Telegram → Terminal**. It authenticates a local
-Telegram account, retrieves messages from a single chat or every chat inside a
-Telegram folder, returns structured message data inside the reader module, and
-prints that data in the terminal. It contains no AI, database, Notion, or
-menu-bar functionality.
+This repository implements **Telegram → Terminal** and an optional **Telegram → AI → Terminal**
+path. It authenticates a local Telegram account, retrieves messages from a single chat
+or every chat inside a Telegram folder, returns structured message data inside the
+reader module, and prints that data in the terminal. An optional `--ai-filter` flag
+classifies each message with Gemini (event/task/important/information/ignore) and
+extracts structured details (dates, times, locations, deadlines). It contains no
+database, Notion, or menu-bar functionality yet.
 
 ## Progress so far
 
@@ -19,7 +21,9 @@ menu-bar functionality.
 - [x] Read messages from every chat inside a named Telegram folder
 - [x] Filter messages by minimum message ID and/or timestamp
 - [x] Print structured message data to the terminal
-- [ ] AI classification/extraction layer (Milestone 2 — not started)
+- [x] AI classification/extraction layer via `--ai-filter` (Gemini, Milestone 2)
+- [ ] Store results in SQLite (Milestone 3 — not started)
+- [ ] Sync results to Notion (Milestone 4 — not started)
 
 ## Prerequisites
 
@@ -53,10 +57,14 @@ Then edit `.env` and fill in:
 TELEGRAM_API_ID=123456
 TELEGRAM_API_HASH=your_api_hash
 TELEGRAM_TEST_CHAT=some_chat_username
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
 `TELEGRAM_TEST_CHAT` can be a username, a numeric ID, or an invite link that your
-account can access. `.env` and the generated Telethon session file are ignored by Git.
+account can access. `GEMINI_API_KEY` is only required if you use `--ai-filter`
+(get a free key at [aistudio.google.com](https://aistudio.google.com/app/apikey) —
+the model used, `gemini-3.5-flash-lite`, is free-tier eligible). `.env` and the
+generated Telethon session file are ignored by Git.
 
 ## Run
 
@@ -84,6 +92,16 @@ python -m app.main --folder "My Folder Name" --limit 5
 Messages are printed oldest to newest after the optional filters are applied. The
 message-ID filter is delegated to Telegram; timestamp filtering is applied locally.
 `--limit`, `--after-id`, and `--after-timestamp` apply per chat when using `--folder`.
+
+Add `--ai-filter` to classify each message with Gemini and print only the ones judged
+relevant (event, task, important, or information — `ignore` results are hidden), with
+extracted title/date/time/location/deadline/importance where available:
+
+```bash
+python -m app.main --folder "My Folder Name" --limit 10 --ai-filter
+```
+
+Each run prints a token-usage summary at the end (`--ai-filter` requires `GEMINI_API_KEY`).
 
 ## First authentication
 

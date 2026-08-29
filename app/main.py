@@ -6,6 +6,8 @@ import argparse
 import asyncio
 from datetime import datetime, timezone
 
+from app.ai.processor import AIProcessorError, UsageTotals, classify_message, create_ai_client
+from app.ai.schemas import MessageClassification
 from app.config.settings import SettingsError, load_settings
 from app.telegram.client import TelegramAuthenticationError, authenticate_client, create_client
 from app.telegram.folders import TelegramFolderError, get_folder_chats
@@ -32,6 +34,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--limit", type=int, default=20, help="Maximum messages to retrieve per chat (default: 20).")
     parser.add_argument("--after-id", type=int, help="Only retrieve messages with a greater message ID.")
     parser.add_argument("--after-timestamp", type=parse_timestamp, help="Only retrieve messages after an ISO 8601 timestamp.")
+    parser.add_argument(
+        "--ai-filter",
+        action="store_true",
+        help=(
+            "Classify each message with Gemini and print only non-'ignore' results with "
+            "extracted details (requires GEMINI_API_KEY)."
+        ),
+    )
     return parser
 
 
@@ -59,7 +69,51 @@ def print_chat_messages(chat_label: object, messages: list[dict[str, object]]) -
         print("\n" + "-" * 40)
 
 
-async def run_folder(client: object, folder_name: str, args: argparse.Namespace) -> None:
+def print_ai_results(
+    chat_label: object,
+    messages: list[dict[str, object]],
+    ai_client: object,
+    usage_totals: UsageTotals,
+) -> None:
+    """Classify each message and print only non-'ignore' results with extracted details."""
+
+    print(f"\nChat: {chat_label}")
+    shown = 0
+    for message in messages:
+        result: MessageClassification = classify_message(ai_client, message, usage_totals)
+        if result.classification == "ignore":
+            continue
+        shown += 1
+        timestamp = message["timestamp"]
+        timestamp_text = timestamp.isoformat(sep=" ") if isinstance(timestamp, datetime) else "Unknown"
+
+        print(f"\n[{result.classification.upper()}] {result.title or '(untitled)'}", end="")
+        print(f" (importance: {result.importance})" if result.importance else "")
+        for label, value in (
+            ("Date", result.date),
+            ("Time", result.time),
+            ("Location", result.location),
+            ("Deadline", result.deadline),
+        ):
+            if value:
+                print(f"  {label}: {value}")
+        if result.summary:
+            print(f"  Summary: {result.summary}")
+        print(f"  Message ID: {message['message_id']} | Sender: {message['sender_name'] or 'Unknown'} | {timestamp_text}")
+        print(f"  Original: {message['message_text']}")
+        print("-" * 40)
+
+    if shown == 0:
+        print("\nNo relevant messages (everything classified as ignore).")
+
+
+async def run_folder(
+    client: object,
+    folder_name: str,
+    args: argparse.Namespace,
+    ai_client: object | None,
+    usage_totals: UsageTotals | None,
+) -> None:
     chats = await get_folder_chats(client, folder_name)
     print_app_header()
     if not chats:
@@ -74,10 +128,19 @@ async def run_folder(client: object, folder_name: str, args: argparse.Namespace)
             after_timestamp=args.after_timestamp,
         )
         chat_label = getattr(chat, "title", None) or getattr(chat, "id", None)
-        print_chat_messages(chat_label, messages)
+        if ai_client is not None:
+            print_ai_results(chat_label, messages, ai_client, usage_totals)
+        else:
+            print_chat_messages(chat_label, messages)
 
 
-async def run_chat(client: object, chat_identifier: object, args: argparse.Namespace) -> None:
+async def run_chat(
+    client: object,
+    chat_identifier: object,
+    args: argparse.Namespace,
+    ai_client: object | None,
+    usage_totals: UsageTotals | None,
+) -> None:
     messages = await get_messages(
         client,
         chat_identifier,
@@ -87,22 +150,37 @@ async def run_chat(client: object, chat_identifier: object, args: argparse.Names
     )
     print_app_header()
     chat_label = messages[0]["chat_name"] if messages else chat_identifier
-    print_chat_messages(chat_label, messages)
+    if ai_client is not None:
+        print_ai_results(chat_label, messages, ai_client, usage_totals)
+    else:
+        print_chat_messages(chat_label, messages)
+
+
+def print_usage_summary(usage_totals: UsageTotals) -> None:
+    print("\n" + "=" * 40)
+    print("AI usage this run (Gemini free tier)")
+    print(f"Input tokens:  {usage_totals.input_tokens}")
+    print(f"Output tokens: {usage_totals.output_tokens}")
+    print("=" * 40)
 
 
 async def run(args: argparse.Namespace) -> None:
     settings = load_settings()
+    ai_client = create_ai_client(settings.gemini_api_key) if args.ai_filter else None
+    usage_totals = UsageTotals() if args.ai_filter else None
 
     client = create_client(settings)
     try:
         await authenticate_client(client)
         if args.folder:
-            await run_folder(client, args.folder, args)
+            await run_folder(client, args.folder, args, ai_client, usage_totals)
         else:
             chat_identifier = args.chat or settings.telegram_test_chat
             if not chat_identifier:
                 raise SettingsError("Set TELEGRAM_TEST_CHAT in .env, or provide --chat or --folder.")
-            await run_chat(client, chat_identifier, args)
+            await run_chat(client, chat_identifier, args, ai_client, usage_totals)
+        if usage_totals is not None:
+            print_usage_summary(usage_totals)
     finally:
         await client.disconnect()
 
@@ -111,7 +189,13 @@ def main() -> int:
     args = build_parser().parse_args()
     try:
         asyncio.run(run(args))
-    except (SettingsError, TelegramAuthenticationError, TelegramReaderError, TelegramFolderError) as exc:
+    except (
+        SettingsError,
+        TelegramAuthenticationError,
+        TelegramReaderError,
+        TelegramFolderError,
+        AIProcessorError,
+    ) as exc:
         print(f"Error: {exc}")
         return 1
     except KeyboardInterrupt:
