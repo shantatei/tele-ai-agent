@@ -7,6 +7,14 @@ from pathlib import Path
 
 TEMPLATE_PATH = Path(__file__).resolve().parent.parent.parent / "template.md"
 
+# Headings that are parsed structurally by app code (see below) rather than being
+# free-text guidance - their content controls app behavior directly, so it must not
+# also be sent to the AI as prompt text (wastes tokens on every call, and is irrelevant
+# to classifying an individual message anyway).
+FOLDERS_HEADING = "Folders to query"
+IGNORED_CHATS_HEADING = "Ignored chats"
+STRUCTURAL_HEADINGS = {FOLDERS_HEADING.lower(), IGNORED_CHATS_HEADING.lower()}
+
 BASE_INSTRUCTIONS = """You are the AI layer of Tele AI Agent. You read a single Telegram message and \
 classify it into exactly one category, then extract any structured details it contains.
 
@@ -31,17 +39,35 @@ Messages with no meaningful text (e.g. a photo or sticker with no caption) shoul
 as ignore."""
 
 
+def _strip_structural_sections(content: str) -> str:
+    """Remove structurally-parsed sections (Folders to query, Ignored chats) from
+    content bound for the AI prompt - those are app config, not extraction guidance,
+    and the AI never needs to see them."""
+
+    kept_lines: list[str] = []
+    skipping = False
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            skipping = stripped.lstrip("#").strip().lower() in STRUCTURAL_HEADINGS
+        if not skipping:
+            kept_lines.append(line)
+    return "\n".join(kept_lines).strip()
+
+
 def load_user_guidelines() -> str | None:
     """Load optional, user-provided extraction guidelines from template.md, if present.
 
     template.md is gitignored so personal guidance (interests, glossary, people to
     prioritize, etc.) never leaves the local machine. Its absence is not an error -
-    the base prompt works fine without it.
+    the base prompt works fine without it. Structural sections (Folders to query,
+    Ignored chats) are excluded - see _strip_structural_sections.
     """
 
     if not TEMPLATE_PATH.exists():
         return None
-    content = TEMPLATE_PATH.read_text(encoding="utf-8").strip()
+    raw_content = TEMPLATE_PATH.read_text(encoding="utf-8")
+    content = _strip_structural_sections(raw_content)
     return content or None
 
 
@@ -78,7 +104,7 @@ def load_ignored_chats() -> set[str]:
     parsed here; only this specific heading's bullet list.
     """
 
-    return {name.lower() for name in _parse_bullets_under_heading("Ignored chats")}
+    return {name.lower() for name in _parse_bullets_under_heading(IGNORED_CHATS_HEADING)}
 
 
 def load_target_folders() -> list[str]:
@@ -93,7 +119,7 @@ def load_target_folders() -> list[str]:
     """
 
     folders: list[str] = []
-    for name in _parse_bullets_under_heading("Folders to query"):
+    for name in _parse_bullets_under_heading(FOLDERS_HEADING):
         if name not in folders:
             folders.append(name)
     return folders

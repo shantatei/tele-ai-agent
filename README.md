@@ -122,8 +122,9 @@ is ignored by Git — never commit it.
 ### Customizing extraction with `template.md`
 
 Copy `template.md.example` to `template.md` (gitignored — safe for personal context) to
-give the AI extra guidance without touching code. Its content is appended to the system
-prompt for every message. Useful things to put in it:
+give the AI extra guidance without touching code. Its content (minus the two structural
+sections below) is appended to the system prompt for every message. Useful things to put
+in it:
 
 - **Locale** — a default timezone/locale for resolving ambiguous times.
 - **Glossary** — group-specific abbreviations or jargon (e.g. venue codes, role names).
@@ -136,7 +137,9 @@ prompt for every message. Useful things to put in it:
 The base categories, required fields, and output schema always take priority over
 anything in `template.md` — it can only add guidance, not override the schema.
 
-Two sections are special — parsed structurally by the app, not just passed to the AI:
+Two sections are special: the app parses them structurally to control its own behavior,
+and — since the AI never needs to see them and it would just waste tokens on every call —
+they are stripped out before the rest of the file is sent as prompt guidance:
 
 `## Folders to query` lists every folder to process when no `--chat`/`--folder` is given
 on the command line, so you can monitor several folders without typing their names each

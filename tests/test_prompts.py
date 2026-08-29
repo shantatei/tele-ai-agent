@@ -33,6 +33,59 @@ class LoadUserGuidelinesTests(unittest.TestCase):
             with patch.object(prompts, "TEMPLATE_PATH", path):
                 self.assertEqual(prompts.load_user_guidelines(), "Prioritize badminton events.")
 
+    def test_excludes_folders_to_query_section(self) -> None:
+        content = "Prioritize badminton.\n\n## Folders to query\n- Helix House\n- NUS Modules\n"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "template.md"
+            path.write_text(content, encoding="utf-8")
+            with patch.object(prompts, "TEMPLATE_PATH", path):
+                result = prompts.load_user_guidelines()
+
+        self.assertIn("Prioritize badminton.", result)
+        self.assertNotIn("Folders to query", result)
+        self.assertNotIn("Helix House", result)
+        self.assertNotIn("NUS Modules", result)
+
+    def test_excludes_ignored_chats_section(self) -> None:
+        content = "Prioritize badminton.\n\n## Ignored chats\n- Laundry\n- Marketplace\n"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "template.md"
+            path.write_text(content, encoding="utf-8")
+            with patch.object(prompts, "TEMPLATE_PATH", path):
+                result = prompts.load_user_guidelines()
+
+        self.assertIn("Prioritize badminton.", result)
+        self.assertNotIn("Ignored chats", result)
+        self.assertNotIn("Laundry", result)
+        self.assertNotIn("Marketplace", result)
+
+    def test_keeps_non_structural_sections_around_structural_ones(self) -> None:
+        content = (
+            "## Priorities\n- Badminton\n\n"
+            "## Folders to query\n- Helix House\n\n"
+            "## Style preferences\n- Keep it short\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "template.md"
+            path.write_text(content, encoding="utf-8")
+            with patch.object(prompts, "TEMPLATE_PATH", path):
+                result = prompts.load_user_guidelines()
+
+        self.assertIn("Priorities", result)
+        self.assertIn("Badminton", result)
+        self.assertNotIn("Folders to query", result)
+        self.assertNotIn("Helix House", result)
+        self.assertIn("Style preferences", result)
+        self.assertIn("Keep it short", result)
+
+    def test_returns_none_when_only_structural_sections_present(self) -> None:
+        content = "## Folders to query\n- Helix House\n\n## Ignored chats\n- Laundry\n"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "template.md"
+            path.write_text(content, encoding="utf-8")
+            with patch.object(prompts, "TEMPLATE_PATH", path):
+                self.assertIsNone(prompts.load_user_guidelines())
+
 
 class BuildSystemPromptTests(unittest.TestCase):
     def test_prompt_excludes_guidelines_section_when_no_template(self) -> None:
