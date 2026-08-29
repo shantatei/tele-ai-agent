@@ -7,9 +7,19 @@ Telegram → AI → SQLite → Notion
 ```
 
 This repository implements only **Telegram → Terminal**. It authenticates a local
-Telegram account, retrieves messages from one chat, returns structured message data
-inside the reader module, and prints that data in the terminal. It contains no AI,
-database, Notion, or menu-bar functionality.
+Telegram account, retrieves messages from a single chat or every chat inside a
+Telegram folder, returns structured message data inside the reader module, and
+prints that data in the terminal. It contains no AI, database, Notion, or
+menu-bar functionality.
+
+## Progress so far
+
+- [x] Authenticate a local Telegram account (Telethon, interactive phone/code login)
+- [x] Read messages from a single chat by username, numeric ID, or invite link
+- [x] Read messages from every chat inside a named Telegram folder
+- [x] Filter messages by minimum message ID and/or timestamp
+- [x] Print structured message data to the terminal
+- [ ] AI classification/extraction layer (Milestone 2 — not started)
 
 ## Prerequisites
 
@@ -64,8 +74,16 @@ python -m app.main --after-id 12345
 python -m app.main --after-timestamp 2026-08-16T01:30:00+00:00
 ```
 
+Read every chat inside a Telegram folder instead of a single chat with `--folder`
+(this is mutually exclusive with `--chat`):
+
+```bash
+python -m app.main --folder "My Folder Name" --limit 5
+```
+
 Messages are printed oldest to newest after the optional filters are applied. The
 message-ID filter is delegated to Telegram; timestamp filtering is applied locally.
+`--limit`, `--after-id`, and `--after-timestamp` apply per chat when using `--folder`.
 
 ## First authentication
 
