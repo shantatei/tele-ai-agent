@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.ai.processor import AIProcessorError, UsageTotals, classify_message, create_ai_client
 from app.ai.prompts import is_chat_ignored, load_ignored_chats, load_target_folders
@@ -23,6 +23,19 @@ from app.notion.sync import build_notion_properties, create_notion_page
 from app.telegram.client import TelegramAuthenticationError, authenticate_client, create_client
 from app.telegram.folders import TelegramFolderError, get_folder_chats
 from app.telegram.reader import TelegramReaderError, get_messages
+
+
+DEFAULT_LOOKBACK = timedelta(days=1)
+
+
+def resolve_after_timestamp(args: argparse.Namespace) -> datetime | None:
+    """Default to the last 24 hours when neither --after-id nor --after-timestamp is
+    given, so a plain daily invocation naturally covers "yesterday" without extra
+    flags. An explicit --after-id or --after-timestamp always takes precedence."""
+
+    if args.after_id is not None or args.after_timestamp is not None:
+        return args.after_timestamp
+    return datetime.now(timezone.utc) - DEFAULT_LOOKBACK
 
 
 def parse_timestamp(value: str) -> datetime:
@@ -254,6 +267,13 @@ def sync_pending_results_to_notion(db_connection: object, notion_client_obj: obj
 
 async def run(args: argparse.Namespace) -> None:
     settings = load_settings()
+    original_after_timestamp = args.after_timestamp
+    args.after_timestamp = resolve_after_timestamp(args)
+    if args.after_timestamp is not None and original_after_timestamp is None and args.after_id is None:
+        print(
+            "No --after-id/--after-timestamp given; defaulting to the last 24 hours "
+            f"(since {args.after_timestamp.isoformat(sep=' ')})."
+        )
     ai_client = create_ai_client(settings.anthropic_api_key) if args.ai_filter else None
     usage_totals = UsageTotals() if args.ai_filter else None
     needs_db = args.ai_filter or args.sync_notion

@@ -81,7 +81,10 @@ With the virtual environment active:
 python -m app.main
 ```
 
-Override the configured chat or narrow the messages if useful:
+If you don't pass `--after-id` or `--after-timestamp`, the app automatically only
+retrieves messages from the last 24 hours (printing the exact cutoff it used) — this
+is what makes a plain daily invocation naturally cover "yesterday" without extra
+flags. Pass either flag yourself to override this:
 
 ```bash
 python -m app.main --chat some_chat_username --limit 10
@@ -216,6 +219,32 @@ the batch, and picked up again on the next `--sync-notion` run.
 Notion's API (as of the `notion-client` v3.1.0 / Notion-Version `2025-09-03` used here)
 creates pages under a database's *data source* ID, not the plain database ID shown in
 its URL — the app resolves this automatically from `NOTION_DATABASE_ID` on each run.
+
+## Running automatically once a day (optional, macOS)
+
+`launchd/com.shantatei.tele-ai-agent.daily.plist` runs
+`python -m app.main --ai-filter --sync-notion` once a day (7:00 AM by default) using
+macOS's built-in scheduler, so you don't have to trigger it from a terminal yourself.
+It relies on the 24-hour default lookback above, and on the Telegram session file
+created during your first interactive login (`*.session`) — no login prompt should
+appear on scheduled runs. To install it:
+
+```bash
+cp "launchd/com.shantatei.tele-ai-agent.daily.plist" ~/Library/LaunchAgents/
+launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.shantatei.tele-ai-agent.daily.plist
+```
+
+Output from each run is appended to `logs/launchd.log` (and errors to
+`logs/launchd.err.log`) — check there if the Notion inbox or the desktop widget below
+seem stale. To change the time, edit the `Hour`/`Minute` values in the `.plist`,
+re-copy it, and reload:
+
+```bash
+launchctl bootout "gui/$(id -u)/com.shantatei.tele-ai-agent.daily" 2>/dev/null
+launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.shantatei.tele-ai-agent.daily.plist
+```
+
+To stop it running altogether: `launchctl bootout "gui/$(id -u)/com.shantatei.tele-ai-agent.daily"`.
 
 ## Desktop widget (optional, macOS)
 

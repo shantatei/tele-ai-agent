@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.shantatei.tele-ai-agent.daily</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/shantatei/Documents/Personal Projects/Telegram AI Agent/.venv/bin/python</string>
+        <string>-m</string>
+        <string>app.main</string>
+        <string>--ai-filter</string>
+        <string>--sync-notion</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/shantatei/Documents/Personal Projects/Telegram AI Agent</string>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>7</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/shantatei/Documents/Personal Projects/Telegram AI Agent/logs/launchd.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/shantatei/Documents/Personal Projects/Telegram AI Agent/logs/launchd.err.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

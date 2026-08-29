@@ -23,3 +23,6 @@ __pycache__/
 
 # macOS Finder metadata
 .DS_Store
+
+# launchd job output
+logs/
