@@ -1,4 +1,4 @@
-# Tele AI Agent
+# tele ai agent
 
 A personal pipeline that reads your Telegram chats, has Claude figure out what's
 actually worth knowing, and keeps a running, de-duplicated log of it in Notion — plus
