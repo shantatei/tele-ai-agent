@@ -34,7 +34,7 @@ class LoadUserGuidelinesTests(unittest.TestCase):
                 self.assertEqual(prompts.load_user_guidelines(), "Prioritize badminton events.")
 
     def test_excludes_folders_to_query_section(self) -> None:
-        content = "Prioritize badminton.\n\n## Folders to query\n- Helix House\n- NUS Modules\n"
+        content = "Prioritize badminton.\n\n## Folders to query\n- Sample Folder\n- Other Folder\n"
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / "template.md"
             path.write_text(content, encoding="utf-8")
@@ -43,8 +43,8 @@ class LoadUserGuidelinesTests(unittest.TestCase):
 
         self.assertIn("Prioritize badminton.", result)
         self.assertNotIn("Folders to query", result)
-        self.assertNotIn("Helix House", result)
-        self.assertNotIn("NUS Modules", result)
+        self.assertNotIn("Sample Folder", result)
+        self.assertNotIn("Other Folder", result)
 
     def test_excludes_ignored_chats_section(self) -> None:
         content = "Prioritize badminton.\n\n## Ignored chats\n- Laundry\n- Marketplace\n"
@@ -62,7 +62,7 @@ class LoadUserGuidelinesTests(unittest.TestCase):
     def test_keeps_non_structural_sections_around_structural_ones(self) -> None:
         content = (
             "## Priorities\n- Badminton\n\n"
-            "## Folders to query\n- Helix House\n\n"
+            "## Folders to query\n- Sample Folder\n\n"
             "## Style preferences\n- Keep it short\n"
         )
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -74,12 +74,12 @@ class LoadUserGuidelinesTests(unittest.TestCase):
         self.assertIn("Priorities", result)
         self.assertIn("Badminton", result)
         self.assertNotIn("Folders to query", result)
-        self.assertNotIn("Helix House", result)
+        self.assertNotIn("Sample Folder", result)
         self.assertIn("Style preferences", result)
         self.assertIn("Keep it short", result)
 
     def test_returns_none_when_only_structural_sections_present(self) -> None:
-        content = "## Folders to query\n- Helix House\n\n## Ignored chats\n- Laundry\n"
+        content = "## Folders to query\n- Sample Folder\n\n## Ignored chats\n- Laundry\n"
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / "template.md"
             path.write_text(content, encoding="utf-8")
@@ -157,11 +157,11 @@ class LoadIgnoredChatsTests(unittest.TestCase):
 
 class IsChatIgnoredTests(unittest.TestCase):
     def test_matches_case_insensitive_substring(self) -> None:
-        self.assertTrue(prompts.is_chat_ignored("Helix Laundry Room", {"laundry"}))
+        self.assertTrue(prompts.is_chat_ignored("Sample Laundry Room", {"laundry"}))
         self.assertTrue(prompts.is_chat_ignored("LAUNDRY updates", {"laundry"}))
 
     def test_no_match_returns_false(self) -> None:
-        self.assertFalse(prompts.is_chat_ignored("Helix Badminton", {"laundry"}))
+        self.assertFalse(prompts.is_chat_ignored("Sample Chat", {"laundry"}))
 
     def test_empty_ignore_set_never_matches(self) -> None:
         self.assertFalse(prompts.is_chat_ignored("Laundry", set()))
@@ -171,16 +171,16 @@ class IsChatIgnoredTests(unittest.TestCase):
 
     def test_matches_on_topic_name_when_chat_name_does_not_match(self) -> None:
         self.assertTrue(
-            prompts.is_chat_ignored("Helixians AY26/27", {"laundry"}, topic_name="Laundry")
+            prompts.is_chat_ignored("Sample Forum", {"laundry"}, topic_name="Laundry")
         )
 
     def test_unmatched_chat_and_topic_returns_false(self) -> None:
         self.assertFalse(
-            prompts.is_chat_ignored("Helixians AY26/27", {"laundry"}, topic_name="General")
+            prompts.is_chat_ignored("Sample Forum", {"laundry"}, topic_name="General")
         )
 
     def test_topic_name_none_does_not_error(self) -> None:
-        self.assertFalse(prompts.is_chat_ignored("Helix Badminton", {"laundry"}, topic_name=None))
+        self.assertFalse(prompts.is_chat_ignored("Sample Chat", {"laundry"}, topic_name=None))
 
 
 class LoadTargetFoldersTests(unittest.TestCase):
@@ -199,28 +199,28 @@ class LoadTargetFoldersTests(unittest.TestCase):
                 self.assertEqual(prompts.load_target_folders(), [])
 
     def test_preserves_order_and_exact_case(self) -> None:
-        content = "## Folders to query\n- Helix House\n- NUS Modules\n"
+        content = "## Folders to query\n- Sample Folder\n- Other Folder\n"
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / "template.md"
             path.write_text(content, encoding="utf-8")
             with patch.object(prompts, "TEMPLATE_PATH", path):
-                self.assertEqual(prompts.load_target_folders(), ["Helix House", "NUS Modules"])
+                self.assertEqual(prompts.load_target_folders(), ["Sample Folder", "Other Folder"])
 
     def test_deduplicates_preserving_first_occurrence(self) -> None:
-        content = "## Folders to query\n- Helix House\n- NUS Modules\n- Helix House\n"
+        content = "## Folders to query\n- Sample Folder\n- Other Folder\n- Sample Folder\n"
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / "template.md"
             path.write_text(content, encoding="utf-8")
             with patch.object(prompts, "TEMPLATE_PATH", path):
-                self.assertEqual(prompts.load_target_folders(), ["Helix House", "NUS Modules"])
+                self.assertEqual(prompts.load_target_folders(), ["Sample Folder", "Other Folder"])
 
     def test_stops_at_next_heading(self) -> None:
-        content = "## Folders to query\n- Helix House\n\n## Ignored chats\n- Laundry\n"
+        content = "## Folders to query\n- Sample Folder\n\n## Ignored chats\n- Laundry\n"
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / "template.md"
             path.write_text(content, encoding="utf-8")
             with patch.object(prompts, "TEMPLATE_PATH", path):
-                self.assertEqual(prompts.load_target_folders(), ["Helix House"])
+                self.assertEqual(prompts.load_target_folders(), ["Sample Folder"])
 
 
 if __name__ == "__main__":

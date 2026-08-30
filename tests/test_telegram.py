@@ -137,7 +137,7 @@ class MessageParsingTests(unittest.IsolatedAsyncioTestCase):
 
 class ForumTopicResolutionTests(unittest.IsolatedAsyncioTestCase):
     async def test_resolves_topic_name_for_forum_chats(self) -> None:
-        chat = SimpleNamespace(id=42, title="Helixians", forum=True)
+        chat = SimpleNamespace(id=42, title="Sample Forum", forum=True)
         message = FakeMessage(
             id=3,
             chat_id=42,
@@ -148,7 +148,7 @@ class ForumTopicResolutionTests(unittest.IsolatedAsyncioTestCase):
         )
         client = FakeClient(chat, [message], topics=[FakeTopic(id=3, title="Laundry")])
 
-        messages = await get_messages(client, "helixians", limit=20)
+        messages = await get_messages(client, "sample forum", limit=20)
 
         self.assertTrue(client.topics_requested)
         self.assertEqual(messages[0]["topic_name"], "Laundry")
@@ -166,7 +166,7 @@ class ForumTopicResolutionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(messages[0]["topic_name"])
 
     async def test_message_not_in_a_topic_has_no_topic_name(self) -> None:
-        chat = SimpleNamespace(id=42, title="Helixians", forum=True)
+        chat = SimpleNamespace(id=42, title="Sample Forum", forum=True)
         message = FakeMessage(
             id=1,
             chat_id=42,
@@ -177,7 +177,7 @@ class ForumTopicResolutionTests(unittest.IsolatedAsyncioTestCase):
         )
         client = FakeClient(chat, [message], topics=[FakeTopic(id=3, title="Laundry")])
 
-        messages = await get_messages(client, "helixians", limit=20)
+        messages = await get_messages(client, "sample forum", limit=20)
 
         self.assertIsNone(messages[0]["topic_name"])
 

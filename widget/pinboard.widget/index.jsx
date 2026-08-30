@@ -1,10 +1,10 @@
 // Desktop widget showing recent items from the Tele AI Agent Notion inbox.
-// Install: copy this whole "helix-pinboard.widget" folder into
+// Install: copy this whole "pinboard.widget" folder into
 // ~/Library/Application Support/Übersicht/widgets/
 
 // Rename the widget freely - change these two and nothing else needs to change.
-const WIDGET_NAME = "Helix Pinboard";
-const WIDGET_ICON = "🧬";
+const WIDGET_NAME = "Pinboard";
+const WIDGET_ICON = "📌";
 
 export const command =
   'cd "$HOME/Documents/Personal Projects/Telegram AI Agent" && .venv/bin/python widget/fetch_events.py';
@@ -365,7 +365,7 @@ export const className = `
        widget's folder - the path must include the widget's own folder name. */
     width: 100%;
     height: 100%;
-    background-image: url('/helix-pinboard.widget/assets/running-cat-transparent.gif');
+    background-image: url('/pinboard.widget/assets/running-cat-transparent.gif');
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center bottom;

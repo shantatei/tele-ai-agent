@@ -12,13 +12,13 @@ Open `widget/preview/index.html` directly in a browser (double-click it, or
 
 1. Install [Übersicht](https://tracesof.net/uebersicht) if you haven't already
    (free, one-click install).
-2. Copy the whole `helix-pinboard.widget` folder into:
+2. Copy the whole `pinboard.widget` folder into:
    ```
    ~/Library/Application Support/Übersicht/widgets/
    ```
    e.g.:
    ```bash
-   cp -R "widget/helix-pinboard.widget" ~/Library/Application\ Support/Übersicht/widgets/
+   cp -R "widget/pinboard.widget" ~/Library/Application\ Support/Übersicht/widgets/
    ```
 3. Übersicht picks up new widgets automatically (or use "Refresh All Widgets"
    from its menu-bar icon).

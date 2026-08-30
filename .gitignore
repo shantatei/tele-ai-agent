@@ -21,8 +21,8 @@ __pycache__/
 .cache/
 .pytest_cache/
 
-# macOS Finder metadata
-.DS_Store
+# macOS Finder metadata (any directory, not just root)
+**/.DS_Store
 
 # launchd job output
 logs/

@@ -32,7 +32,7 @@ you want auto-ignored:
 
 ### Locale
 State a default timezone/locale if relevant times are otherwise ambiguous:
-- e.g. "Assume Singapore time (UTC+8) unless a message states otherwise."
+- e.g. "Assume Eastern Time (UTC-5) unless a message states otherwise."
 
 ### Style preferences
 Any formatting preference for the summary field:
@@ -52,8 +52,8 @@ matching used for ignored chats/topics below):
 
 ```markdown
 ## Folders to query
-- Helix House
-- NUS Modules
+- Study Group
+- Sports Club
 ```
 
 ### `## Ignored chats`
