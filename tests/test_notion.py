@@ -33,7 +33,7 @@ def make_row(**overrides: object) -> dict[str, object]:
         "importance": "high",
         "chat_name": "Example Chat",
         "telegram_message_id": 1414,
-        "created_at": "2026-08-21 12:00:00",
+        "message_timestamp": "2026-08-21 12:00:00",
     }
     row.update(overrides)
     return row
@@ -130,7 +130,7 @@ class BuildNotionPropertiesTests(unittest.TestCase):
 
     def test_omits_optional_fields_when_absent(self) -> None:
         properties = build_notion_properties(
-            make_row(location=None, importance=None, summary=None, deadline=None, created_at=None)
+            make_row(location=None, importance=None, summary=None, deadline=None, message_timestamp=None)
         )
 
         self.assertNotIn("Location", properties)

@@ -102,7 +102,9 @@ def get_unsynced_ai_results(connection: sqlite3.Connection) -> list[dict[str, An
 
     rows = connection.execute(
         """
-        SELECT ai_results.*, messages.chat_name AS chat_name, messages.telegram_message_id AS telegram_message_id
+        SELECT ai_results.*, messages.chat_name AS chat_name,
+               messages.telegram_message_id AS telegram_message_id,
+               messages.timestamp AS message_timestamp
         FROM ai_results
         JOIN messages ON ai_results.message_id = messages.id
         WHERE ai_results.classification != 'ignore'

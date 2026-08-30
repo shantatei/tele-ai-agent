@@ -32,8 +32,9 @@ already configured (`NOTION_API_KEY` / `NOTION_DATABASE_ID` in `.env`).
 ## How it works
 
 - Refreshes every 5 minutes (`refreshFrequency` in `index.jsx`).
-- Shows every synced item, newest first (by Deadline, then Date, then when it was
-  added to Notion for anything with neither) — scroll the board to see older ones.
+- Shows every synced item, ordered by when the underlying Telegram message was
+  actually sent (most recent first) — not by the event's own Date/Deadline, which
+  can be far in the future or past. Scroll the board to see older ones.
 - Clicking a card opens that item's Notion page.
 - If Notion is unreachable or misconfigured, it shows an error message instead of
   crashing (see `fetch_events.py`'s `except` handling).

@@ -313,7 +313,7 @@ async def run(args: argparse.Namespace) -> None:
             notion_client_obj = create_notion_client(settings.notion_api_key)
             data_source_id = resolve_data_source_id(notion_client_obj, settings.notion_database_id)
             sync_pending_results_to_notion(db_connection, notion_client_obj, data_source_id)
-            update_last_synced_marker(notion_client_obj, settings.notion_status_page_id, datetime.now(timezone.utc))
+            update_last_synced_marker(notion_client_obj, settings.notion_database_id, datetime.now(timezone.utc))
     finally:
         await client.disconnect()
         if db_connection is not None:

@@ -21,8 +21,9 @@ PAGE_SIZE = 100
 
 
 def fetch_all_events() -> list[dict[str, object]]:
-    """Fetch every synced row (no date filtering), newest-first by whichever of
-    Deadline/Date/created-time is most relevant to that row."""
+    """Fetch every synced row (no date filtering), ordered by when the underlying
+    Telegram message was actually sent (most recently sent first) - not by the
+    event's own Date/Deadline, which can be arbitrarily far in the future or past."""
 
     settings = load_settings()
     client = create_notion_client(settings.notion_api_key)
@@ -46,13 +47,16 @@ def fetch_all_events() -> list[dict[str, object]]:
             summary_rich = props["Summary"]["rich_text"]
             date_prop = props["Date"]["date"]
             deadline_prop = props["Deadline"]["date"]
+            sent_prop = props["Created"]["date"]
             source_chat_rich = props["Source Chat"]["rich_text"]
 
             date_str = date_prop["start"] if date_prop else None
             deadline_str = deadline_prop["start"] if deadline_prop else None
-            # Undated rows (e.g. general Information items) still need a sort
-            # position, so fall back to when the page was created.
-            sort_key = deadline_str or date_str or page["created_time"]
+            # "Created" holds the original Telegram message timestamp (set by
+            # app/notion/sync.py), not Notion's own page-creation time. Rows
+            # synced before that fix won't have it, so fall back to the page's
+            # own created_time rather than sorting them to the very bottom.
+            sort_key = (sent_prop["start"] if sent_prop else None) or page["created_time"]
 
             events.append(
                 {

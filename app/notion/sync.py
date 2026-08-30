@@ -26,7 +26,7 @@ def build_notion_properties(row: dict[str, Any]) -> dict[str, Any]:
     """Map one joined ai_results+messages row to Notion property values.
 
     ``row`` must have: classification, title, summary, date, time, location,
-    deadline, importance, chat_name, telegram_message_id, created_at.
+    deadline, importance, chat_name, telegram_message_id, message_timestamp.
     """
 
     title = row.get("title") or row.get("chat_name") or "Untitled"
@@ -51,8 +51,8 @@ def build_notion_properties(row: dict[str, Any]) -> dict[str, Any]:
         properties["Telegram Message ID"] = _rich_text(str(row["telegram_message_id"]))
     if row.get("summary"):
         properties["Summary"] = _rich_text(row["summary"])
-    if row.get("created_at"):
-        properties["Created"] = {"date": {"start": str(row["created_at"]).replace(" ", "T")}}
+    if row.get("message_timestamp"):
+        properties["Created"] = {"date": {"start": str(row["message_timestamp"]).replace(" ", "T")}}
     return properties
 
 

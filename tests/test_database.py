@@ -152,6 +152,7 @@ class NotionSyncPersistenceTests(unittest.TestCase):
         self.assertEqual(pending[0]["id"], ai_result_id)
         self.assertEqual(pending[0]["title"], "Meeting")
         self.assertEqual(pending[0]["chat_name"], "Example Chat")
+        self.assertEqual(pending[0]["message_timestamp"], "2026-08-21T12:00:00+00:00")
 
     def test_synced_results_are_excluded_from_pending(self) -> None:
         ai_result_id = self._store_result(1, MessageClassification(classification="task", title="Do X"))
