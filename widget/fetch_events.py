@@ -9,10 +9,14 @@ the widget can render a friendly state either way instead of crashing.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 
-sys.path.insert(0, "/Users/shantatei/Documents/Personal Projects/Telegram AI Agent")
+# The project root is this file's grandparent directory (widget/fetch_events.py ->
+# widget/ -> project root) - computed rather than hardcoded so this works regardless
+# of where the repo is cloned, and doesn't bake a machine-specific path into the file.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.config.settings import load_settings
 from app.notion.client import NotionSyncError, create_notion_client, resolve_data_source_id

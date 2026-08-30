@@ -7,15 +7,10 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/shantatei/Documents/Personal Projects/Telegram AI Agent/.venv/bin/python</string>
-        <string>-m</string>
-        <string>app.main</string>
-        <string>--ai-filter</string>
-        <string>--sync-notion</string>
+        <string>/bin/sh</string>
+        <string>-c</string>
+        <string>cd "$HOME/Documents/Personal Projects/Telegram AI Agent" &amp;&amp; mkdir -p logs &amp;&amp; .venv/bin/python -m app.main --ai-filter --sync-notion >> logs/launchd.log 2>> logs/launchd.err.log</string>
     </array>
-
-    <key>WorkingDirectory</key>
-    <string>/Users/shantatei/Documents/Personal Projects/Telegram AI Agent</string>
 
     <key>StartCalendarInterval</key>
     <dict>
@@ -24,12 +19,6 @@
         <key>Minute</key>
         <integer>0</integer>
     </dict>
-
-    <key>StandardOutPath</key>
-    <string>/Users/shantatei/Documents/Personal Projects/Telegram AI Agent/logs/launchd.log</string>
-
-    <key>StandardErrorPath</key>
-    <string>/Users/shantatei/Documents/Personal Projects/Telegram AI Agent/logs/launchd.err.log</string>
 
     <key>RunAtLoad</key>
     <false/>

@@ -3,7 +3,7 @@
 // ~/Library/Application Support/Übersicht/widgets/
 
 export const command =
-  'cd "/Users/shantatei/Documents/Personal Projects/Telegram AI Agent" && .venv/bin/python widget/fetch_events.py';
+  'cd "$HOME/Documents/Personal Projects/Telegram AI Agent" && .venv/bin/python widget/fetch_events.py';
 
 export const refreshFrequency = 300000; // 5 minutes
 
