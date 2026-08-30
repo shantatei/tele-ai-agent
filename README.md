@@ -27,6 +27,39 @@ flag then creates a Notion page for each not-yet-synced result. No menu-bar UI y
 - [x] Sync AI results to Notion via `--sync-notion`; skip already-synced results (Milestone 4)
 - [x] Optional macOS desktop widget showing upcoming events/tasks from Notion (see [Desktop widget](#desktop-widget-optional-macos))
 
+## Tech stack
+
+<table>
+<tr>
+<td width="56"><img src="docs/assets/tech-stack/python.svg" width="36" height="36" alt="Python"></td>
+<td><b>Python</b><br>Core language — glues every layer below together, no framework.</td>
+</tr>
+<tr>
+<td><img src="docs/assets/tech-stack/telegram.svg" width="36" height="36" alt="Telegram"></td>
+<td><b>Telegram API (Telethon)</b><br>Message source — auth, chats, folders, forum topics.</td>
+</tr>
+<tr>
+<td><img src="docs/assets/tech-stack/claude.svg" width="36" height="36" alt="Claude"></td>
+<td><b>Claude (Anthropic API)</b><br>Classifies and extracts structured detail from each message — Claude Sonnet 5.</td>
+</tr>
+<tr>
+<td>🗄️</td>
+<td><b>SQLite</b><br>Local persistence — dedup, processed-message tracking, restart/recovery.</td>
+</tr>
+<tr>
+<td><img src="docs/assets/tech-stack/notion.svg" width="36" height="36" alt="Notion"></td>
+<td><b>Notion API</b><br>Structured destination — the Telegram AI Inbox database, and this project's own overview page.</td>
+</tr>
+<tr>
+<td>🕐</td>
+<td><b>launchd</b><br>macOS's built-in scheduler — runs the pipeline automatically once a day.</td>
+</tr>
+<tr>
+<td><img src="docs/assets/tech-stack/react.svg" width="36" height="36" alt="React"></td>
+<td><b>React (via Übersicht)</b><br>Optional desktop widget — see <a href="#desktop-widget-optional-macos">Desktop widget</a> below.</td>
+</tr>
+</table>
+
 ## Prerequisites
 
 - Python 3.10 or newer (`python3 --version`)

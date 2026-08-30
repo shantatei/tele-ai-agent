@@ -19,6 +19,7 @@ from app.database.repository import (
     store_ai_result,
 )
 from app.notion.client import NotionSyncError, create_notion_client, resolve_data_source_id
+from app.notion.status import update_last_synced_marker
 from app.notion.sync import build_notion_properties, create_notion_page
 from app.telegram.client import TelegramAuthenticationError, authenticate_client, create_client
 from app.telegram.folders import TelegramFolderError, get_folder_chats
@@ -312,6 +313,7 @@ async def run(args: argparse.Namespace) -> None:
             notion_client_obj = create_notion_client(settings.notion_api_key)
             data_source_id = resolve_data_source_id(notion_client_obj, settings.notion_database_id)
             sync_pending_results_to_notion(db_connection, notion_client_obj, data_source_id)
+            update_last_synced_marker(notion_client_obj, settings.notion_status_page_id, datetime.now(timezone.utc))
     finally:
         await client.disconnect()
         if db_connection is not None:
