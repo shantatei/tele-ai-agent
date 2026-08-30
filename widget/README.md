@@ -1,8 +1,7 @@
-# Helix Pinboard — desktop widget
+# Desktop widget
 
-A small Übersicht widget showing upcoming events/tasks/deadlines from the Tele AI
-Agent Notion inbox, styled as a dark-glass "pinboard" with a running cat as the
-live/fetching indicator.
+A small Übersicht widget showing recent items from the Tele AI Agent Notion inbox,
+styled as a dark-glass "pinboard" with a running cat as the live/fetching indicator.
 
 ## Preview without installing anything
 
@@ -24,10 +23,9 @@ Open `widget/preview/index.html` directly in a browser (double-click it, or
 3. Übersicht picks up new widgets automatically (or use "Refresh All Widgets"
    from its menu-bar icon).
 
-The widget calls `widget/fetch_events.py` in this project (via its absolute path,
-using this project's own `.venv` and `.env`), so it always reads whatever is
-currently in your Notion inbox — no separate setup needed beyond what Milestone 4
-already configured (`NOTION_API_KEY` / `NOTION_DATABASE_ID` in `.env`).
+The widget calls `widget/fetch_events.py` in this project, using this project's own
+`.venv` and `.env`, so it always reads whatever is currently in your Notion inbox — no
+separate setup needed beyond `NOTION_API_KEY` / `NOTION_DATABASE_ID` in `.env`.
 
 ## How it works
 
@@ -41,6 +39,8 @@ already configured (`NOTION_API_KEY` / `NOTION_DATABASE_ID` in `.env`).
 
 ## Customizing
 
+- **Name and icon**: `WIDGET_NAME` and `WIDGET_ICON` at the top of `index.jsx` — call
+  it whatever you like.
 - **Position**: edit the `top` / `right` values at the top of `index.jsx`'s
   `className` export (currently pinned to the top-right of the screen).
 - **Refresh rate**: `refreshFrequency` (milliseconds) in `index.jsx`.

@@ -250,9 +250,10 @@ Output from each run is appended to `logs/launchd.log` (and errors to
 
 ## Desktop widget (optional, macOS)
 
-`widget/` contains an [Übersicht](https://tracesof.net/uebersicht) desktop widget,
-"Helix Pinboard", that shows recent items straight from the Notion inbox above — a
-lighter alternative to a full menu-bar app for glancing at what's going on. See
+`widget/` contains an [Übersicht](https://tracesof.net/uebersicht) desktop widget
+that shows recent items straight from the Notion inbox above — a lighter alternative
+to a full menu-bar app for glancing at what's going on. Its display name is a one-line
+edit in the widget's own file, so you can call it whatever you like. See
 [widget/README.md](widget/README.md) for install steps and how it works.
 
 ## First authentication

@@ -1,6 +1,10 @@
-// Helix Pinboard — shows upcoming events/tasks from the Tele AI Agent Notion inbox.
+// Desktop widget showing recent items from the Tele AI Agent Notion inbox.
 // Install: copy this whole "helix-pinboard.widget" folder into
 // ~/Library/Application Support/Übersicht/widgets/
+
+// Rename the widget freely - change these two and nothing else needs to change.
+const WIDGET_NAME = "Helix Pinboard";
+const WIDGET_ICON = "🧬";
 
 export const command =
   'cd "$HOME/Documents/Personal Projects/Telegram AI Agent" && .venv/bin/python widget/fetch_events.py';
@@ -80,8 +84,8 @@ export const render = ({ output }) => {
       <div className="masthead">
         <div>
           <div className="masthead-title-row">
-            <div className="masthead-badge">{"🧬"}</div>
-            <div className="masthead-title">Helix Pinboard</div>
+            <div className="masthead-badge">{WIDGET_ICON}</div>
+            <div className="masthead-title">{WIDGET_NAME}</div>
           </div>
           <div className="masthead-sub">from Telegram, via Notion</div>
         </div>
