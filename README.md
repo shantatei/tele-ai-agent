@@ -178,8 +178,8 @@ on the command line:
 
 ```markdown
 ## Folders to query
-- NUS Modules
-- NUS CCAS
+- Study Group
+- Sports Club
 ```
 
 `## Ignored chats` entries (one per bullet, matched as a case-insensitive substring)
