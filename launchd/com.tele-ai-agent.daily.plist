@@ -9,18 +9,20 @@
     <array>
         <string>/bin/sh</string>
         <string>-c</string>
-        <string>cd "$HOME/Documents/Personal Projects/Telegram AI Agent" &amp;&amp; mkdir -p logs &amp;&amp; .venv/bin/python -m app.main --ai-filter --sync-notion >> logs/launchd.log 2>> logs/launchd.err.log</string>
+        <string>cd "$HOME/Documents/Personal Projects/Telegram AI Agent" &amp;&amp; mkdir -p logs &amp;&amp; .venv/bin/python -m app.main --ai-filter --sync-notion --once-daily >> logs/launchd.log 2>> logs/launchd.err.log</string>
     </array>
 
-    <key>StartCalendarInterval</key>
-    <dict>
-        <key>Hour</key>
-        <integer>7</integer>
-        <key>Minute</key>
-        <integer>0</integer>
-    </dict>
+    <!-- Checks in every hour instead of firing once at a fixed time, since a fixed
+         StartCalendarInterval only fires reliably if the Mac happens to be awake at
+         that exact moment - if it's asleep, launchd's catch-up attempt often lands in
+         a brief low-connectivity window and fails. --once-daily makes each check a
+         cheap no-op once today's run has actually succeeded, so checking hourly is
+         safe and just means it catches up as soon as the Mac is genuinely awake and
+         networked, whenever that turns out to be. -->
+    <key>StartInterval</key>
+    <integer>3600</integer>
 
     <key>RunAtLoad</key>
-    <false/>
+    <true/>
 </dict>
 </plist>

@@ -125,3 +125,17 @@ def record_notion_sync(connection: sqlite3.Connection, ai_result_id: int, notion
         (ai_result_id, notion_page_id),
     )
     connection.commit()
+
+
+def has_run_today(connection: sqlite3.Connection, run_date: str) -> bool:
+    """Check whether --once-daily has already completed a run for this date."""
+
+    row = connection.execute("SELECT 1 FROM daily_runs WHERE run_date = ?", (run_date,)).fetchone()
+    return row is not None
+
+
+def record_daily_run(connection: sqlite3.Connection, run_date: str) -> None:
+    """Mark this date as done, so a later --once-daily check today skips the run."""
+
+    connection.execute("INSERT OR IGNORE INTO daily_runs (run_date) VALUES (?)", (run_date,))
+    connection.commit()

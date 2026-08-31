@@ -15,11 +15,13 @@ from app.database.repository import (
     find_or_create_message,
     get_ai_result,
     get_unsynced_ai_results,
+    has_run_today,
+    record_daily_run,
     record_notion_sync,
     store_ai_result,
 )
 from app.notion.client import NotionSyncError, create_notion_client, resolve_data_source_id
-from app.notion.status import update_last_synced_marker
+from app.notion.status import SINGAPORE_TZ, update_last_synced_marker
 from app.notion.sync import build_notion_properties, create_notion_page
 from app.telegram.client import TelegramAuthenticationError, authenticate_client, create_client
 from app.telegram.folders import TelegramFolderError, get_folder_chats
@@ -82,6 +84,17 @@ def build_parser() -> argparse.ArgumentParser:
             "NOTION_API_KEY and NOTION_DATABASE_ID). Runs after any --ai-filter "
             "processing this invocation, and also picks up results left over from "
             "earlier runs, so it can be used on its own to retry a failed sync."
+        ),
+    )
+    parser.add_argument(
+        "--once-daily",
+        action="store_true",
+        help=(
+            "Skip the run entirely (no Telegram/AI/Notion calls at all) if a run has "
+            "already completed successfully today (Singapore time). Meant for a "
+            "scheduler that checks in periodically (e.g. hourly) rather than betting "
+            "on one fixed time when the machine might be asleep - requires --ai-filter "
+            "and/or --sync-notion for a database connection to track it with."
         ),
     )
     return parser
@@ -282,6 +295,15 @@ async def run(args: argparse.Namespace) -> None:
     run_stats = {"classified": 0, "cached": 0}
     ignored_chats = load_ignored_chats() if args.ai_filter else set()
 
+    today = datetime.now(SINGAPORE_TZ).date().isoformat()
+    if args.once_daily:
+        if db_connection is None:
+            raise SettingsError("--once-daily requires --ai-filter and/or --sync-notion.")
+        if has_run_today(db_connection, today):
+            print(f"Already completed today ({today}, Singapore time) - skipping.")
+            db_connection.close()
+            return
+
     if args.folder:
         target_folders = [args.folder]
     elif args.chat:
@@ -314,6 +336,8 @@ async def run(args: argparse.Namespace) -> None:
             data_source_id = resolve_data_source_id(notion_client_obj, settings.notion_database_id)
             sync_pending_results_to_notion(db_connection, notion_client_obj, data_source_id)
             update_last_synced_marker(notion_client_obj, settings.notion_database_id, datetime.now(timezone.utc))
+        if args.once_daily:
+            record_daily_run(db_connection, today)
     finally:
         await client.disconnect()
         if db_connection is not None:

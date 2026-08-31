@@ -236,17 +236,24 @@ the batch, and retried on the next `--sync-notion` run. The database's own descr
 ## Running it automatically once a day (optional, macOS)
 
 `launchd/com.tele-ai-agent.daily.plist` runs the equivalent of
-`python -m app.main --ai-filter --sync-notion` once a day (7:00 AM by default) via
-macOS's built-in scheduler, so you don't have to trigger it from a terminal yourself.
-Install it with:
+`python -m app.main --ai-filter --sync-notion` via macOS's built-in scheduler, so you
+don't have to trigger it from a terminal yourself. Install it with:
 
 ```bash
 cp "launchd/com.tele-ai-agent.daily.plist" ~/Library/LaunchAgents/
 launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.tele-ai-agent.daily.plist
 ```
 
-Output from each run is appended to `logs/launchd.log` (and errors to
-`logs/launchd.err.log`) inside the project directory.
+Rather than firing once at a fixed hour (which only works if the Mac happens to be
+awake at that exact moment - if it's asleep, launchd's catch-up attempt often lands in
+a brief low-connectivity window and fails), it checks in every hour and adds
+`--once-daily`, which makes the run a no-op if it's already completed successfully
+today (Singapore time), tracked in `data/telegram_agent.db`. This means it safely
+catches up as soon as the Mac is actually awake and networked, whenever that turns out
+to be, instead of betting on one precise moment.
+
+Output from each run (including skipped no-ops) is appended to `logs/launchd.log` (and
+errors to `logs/launchd.err.log`) inside the project directory.
 
 ## Desktop widget (optional, macOS)
 

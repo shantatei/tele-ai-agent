@@ -46,4 +46,14 @@ CREATE TABLE IF NOT EXISTS notion_sync (
 );
 """
 
-ALL_SCHEMAS = (MESSAGES_SCHEMA, AI_RESULTS_SCHEMA, NOTION_SYNC_SCHEMA)
+# Tracks which calendar days (Singapore time) --once-daily has already completed
+# a run for, so an hourly scheduler can safely check in without doing extra work
+# once today's run has already succeeded.
+DAILY_RUNS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS daily_runs (
+    run_date TEXT PRIMARY KEY,
+    completed_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+"""
+
+ALL_SCHEMAS = (MESSAGES_SCHEMA, AI_RESULTS_SCHEMA, NOTION_SYNC_SCHEMA, DAILY_RUNS_SCHEMA)

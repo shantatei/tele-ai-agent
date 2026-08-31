@@ -11,6 +11,8 @@ from app.database.repository import (
     find_or_create_message,
     get_ai_result,
     get_unsynced_ai_results,
+    has_run_today,
+    record_daily_run,
     record_notion_sync,
     store_ai_result,
 )
@@ -168,6 +170,33 @@ class NotionSyncPersistenceTests(unittest.TestCase):
         pending = get_unsynced_ai_results(self.connection)
 
         self.assertEqual([row["id"] for row in pending], [pending_id])
+
+
+class DailyRunTrackingTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.connection = get_connection(":memory:")
+
+    def tearDown(self) -> None:
+        self.connection.close()
+
+    def test_has_not_run_today_by_default(self) -> None:
+        self.assertFalse(has_run_today(self.connection, "2026-08-31"))
+
+    def test_has_run_today_after_recording(self) -> None:
+        record_daily_run(self.connection, "2026-08-31")
+
+        self.assertTrue(has_run_today(self.connection, "2026-08-31"))
+
+    def test_recording_one_date_does_not_mark_another_as_done(self) -> None:
+        record_daily_run(self.connection, "2026-08-30")
+
+        self.assertFalse(has_run_today(self.connection, "2026-08-31"))
+
+    def test_recording_the_same_date_twice_does_not_error(self) -> None:
+        record_daily_run(self.connection, "2026-08-31")
+        record_daily_run(self.connection, "2026-08-31")  # should not raise
+
+        self.assertTrue(has_run_today(self.connection, "2026-08-31"))
 
 
 if __name__ == "__main__":
