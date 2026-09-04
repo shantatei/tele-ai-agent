@@ -122,7 +122,12 @@ export const render = ({ output }) => {
 
 export const className = `
   top: 12px;
-  right: 70px;
+  left: auto;
+  right: 180px;
+  /* left: auto matters here - without it, the widget's own position drifted back
+     against the right edge regardless of the right value, after some Übersicht
+     internal state got stuck (traced to ~/Library/Application Support/tracesOf.
+     Uebersicht/WidgetSettings.json). Explicit left: auto has been reliable since. */
   width: 340px;
 
   font-family: "Karla", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
